@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+            <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="navPrincipal" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="navPrincipal">
+                <span class="usuario-nome"><%= usuario.nome %></span>
+                <a href="/home">Home</a>
+                <a href="/catalogo">Catalogo</a>
+                <a href="/catalogo/configurador">Configurador</a>
+                <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
+                <% if (usuario.isAdmin) { %><a href="/admin/revisao">Revisão</a><% } %>
+                <a href="/logout" class="sair">Sair</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="home">
+            <div class="hero">
+                <h1>Monte sua bike ideal</h1>
+                <p>Peca por peca, com garantia de compatibilidade e o melhor preco</p>
+                <a href="/catalogo/configurador" class="btn-principal">Comecar agora</a>
+            </div>
+
+            <div class="vantagens">
+                <div class="vantagem-card">
+                    <h3>Economize</h3>
+                    <p>Compare o preco atual entre marcas e monte dentro do seu orcamento</p>
+                </div>
+                <div class="vantagem-card">
+                    <h3>Seguranca</h3>
+                    <p>Pecas de marcas confiaveis e compativeis</p>
+                </div>
+                <div class="vantagem-card">
+                    <h3>Praticidade</h3>
+                    <p>PDF final para montagem sem erros</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

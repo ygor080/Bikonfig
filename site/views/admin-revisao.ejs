@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisão de produtos - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+            <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="navPrincipal" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="navPrincipal">
+                <span class="usuario-nome"><%= usuario.nome %></span>
+                <a href="/home">Home</a>
+                <a href="/catalogo">Catalogo</a>
+                <a href="/catalogo/configurador">Configurador</a>
+                <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
+                <a href="/logout" class="sair">Sair</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="catalogo-header">
+            <h1>Revisão de produtos</h1>
+            <p><%= produtos.length %> produto<%= produtos.length === 1 ? '' : 's' %> aguardando revisão -- eles não aparecem no catálogo/configurador do cliente até serem aprovados aqui.</p>
+        </div>
+
+        <% if (mensagem) { %>
+            <div class="admin-mensagem"><%= mensagem %></div>
+        <% } %>
+
+        <% if (produtos.length === 0) { %>
+            <div class="catalogo-vazio">
+                <div class="icone-estado">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="19" stroke="currentColor" stroke-width="2.5"/>
+                        <path d="M16 24.5l5.5 5.5L32 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h2>Nada pra revisar</h2>
+                <p>Todo produto coletado já foi aprovado ou rejeitado.</p>
+            </div>
+        <% } else { %>
+            <div class="admin-lista">
+                <% produtos.forEach(function (p) { %>
+                    <div class="admin-card">
+                        <div class="admin-card__topo">
+                            <img class="admin-card__imagem" src="<%= p.imagem || '/img/pecas/quadro.svg' %>" alt="">
+                            <div class="admin-card__info">
+                                <a href="<%= p.product_url %>" target="_blank" rel="noopener noreferrer" class="admin-card__nome"><%= p.nome %></a>
+                                <p class="admin-card__meta">
+                                    <%= p.marca %> · R$ <%= p.preco.toFixed(2) %>
+                                    <% if (p.opcional) { %> · <span class="tag-opcional">opcional</span><% } %>
+                                </p>
+                                <p class="admin-card__meta">
+                                    Categoria da IA: <strong><%= p.categoria_atual_nome || '(nenhuma)' %></strong>
+                                    · Confiança:
+                                    <strong class="<%= (p.confianca ?? 0) < 0.5 ? 'admin-confianca--baixa' : 'admin-confianca--media' %>">
+                                        <%= p.confianca !== null ? Math.round(p.confianca * 100) + '%' : '—' %>
+                                    </strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="/admin/revisao/<%= p.id %>/aprovar" class="admin-card__form">
+                            <label>
+                                Categoria correta
+                                <select name="categoria" required>
+                                    <option value="">Selecione...</option>
+                                    <% var grupoAtual = null; %>
+                                    <% categorias.forEach(function (c) { %>
+                                        <% var grupo = c.grupo_pai || c.name; %>
+                                        <% if (grupo !== grupoAtual) { %>
+                                            <% if (grupoAtual !== null) { %></optgroup><% } %>
+                                            <optgroup label="<%= grupo %>">
+                                            <% grupoAtual = grupo; %>
+                                        <% } %>
+                                        <option value="<%= c.slug %>" <%= c.slug === p.categoria_atual ? 'selected' : '' %>><%= c.name %></option>
+                                    <% }); %>
+                                    <% if (categorias.length > 0) { %></optgroup><% } %>
+                                </select>
+                            </label>
+
+                            <label>
+                                Specs (uma por linha, "chave: valor")
+                                <textarea name="specsTexto" rows="3" placeholder="velocidades: 11v&#10;aro: 29"><%= p.specsTexto %></textarea>
+                            </label>
+
+                            <div class="admin-card__acoes">
+                                <button type="submit" class="btn-principal">Aprovar</button>
+                            </div>
+                        </form>
+
+                        <form method="POST" action="/admin/revisao/<%= p.id %>/rejeitar" class="admin-card__rejeitar js-form-confirmar" data-confirmar-titulo="Rejeitar produto" data-confirmar-mensagem="Rejeitar e excluir este produto? Essa ação não pode ser desfeita.">
+                            <button type="submit" class="btn-secundario admin-btn-rejeitar">Rejeitar / excluir</button>
+                        </form>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

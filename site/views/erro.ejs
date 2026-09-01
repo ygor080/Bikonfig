@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= titulo %> - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+            <% if (usuario) { %>
+            <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="navPrincipal" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="navPrincipal">
+                <span class="usuario-nome"><%= usuario.nome %></span>
+                <a href="/catalogo">Catalogo</a>
+                <a href="/logout" class="sair">Sair</a>
+            </nav>
+            <% } %>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="login-box">
+            <h1><%= titulo %></h1>
+            <div class="erro"><%= mensagem %></div>
+        </div>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

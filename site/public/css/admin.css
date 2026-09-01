@@ -1,0 +1,99 @@
+.admin-mensagem {
+    background: rgba(80, 200, 120, 0.12);
+    border: 1px solid rgba(80, 200, 120, 0.4);
+    color: #2e7d4f;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.admin-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-card {
+    background: #fff;
+    border: 1px solid var(--borda, rgba(0, 0, 0, 0.1));
+    border-radius: var(--raio, 10px);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-card__topo {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.admin-card__imagem {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+    padding: 6px;
+}
+
+.admin-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-card__nome {
+    font-weight: 600;
+    text-decoration: none;
+    display: block;
+}
+
+.admin-card__meta {
+    font-size: 0.9em;
+    opacity: 0.85;
+    margin: 4px 0 0;
+}
+
+.admin-confianca--baixa { color: #c0392b; }
+.admin-confianca--media { color: #b8860b; }
+
+.admin-card__form {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.admin-card__form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9em;
+    flex: 1;
+    min-width: 220px;
+}
+
+.admin-card__form select,
+.admin-card__form textarea {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    font-family: inherit;
+    font-size: 0.95em;
+}
+
+.admin-card__acoes {
+    display: flex;
+    align-items: flex-end;
+}
+
+.admin-card__rejeitar {
+    align-self: flex-start;
+}
+
+.admin-btn-rejeitar {
+    color: #c0392b;
+    border-color: #c0392b;
+}

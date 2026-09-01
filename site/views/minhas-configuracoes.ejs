@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minhas configurações - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+            <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="navPrincipal" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="navPrincipal">
+                <span class="usuario-nome"><%= usuario.nome %></span>
+                <a href="/home">Home</a>
+                <a href="/catalogo">Catalogo</a>
+                <a href="/catalogo/configurador">Configurador</a>
+                <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
+                <% if (usuario.isAdmin) { %><a href="/admin/revisao">Revisão</a><% } %>
+                <a href="/logout" class="sair">Sair</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="catalogo-header">
+            <h1>Minhas configurações</h1>
+            <p>As montagens que você salvou no configurador ficam aqui.</p>
+        </div>
+
+        <% if (configuracoes.length === 0) { %>
+            <div class="catalogo-vazio">
+                <div class="icone-estado">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="9" y="12" width="30" height="26" rx="3" stroke="currentColor" stroke-width="2.5"/>
+                        <path d="M9 19h30" stroke="currentColor" stroke-width="2.5"/>
+                        <path d="M17 28l4 4 8-8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h2>Nenhuma configuração salva ainda</h2>
+                <p>Monte sua bike no configurador e salve para ver ela aqui depois.</p>
+                <a href="/catalogo/configurador" class="btn-secundario">Ir para o configurador</a>
+            </div>
+        <% } else { %>
+            <div class="admin-lista">
+                <% configuracoes.forEach(function (c) { %>
+                    <div class="admin-card">
+                        <div class="admin-card__topo">
+                            <div class="admin-card__info">
+                                <span class="admin-card__nome"><%= c.nome %></span>
+                                <p class="admin-card__meta">
+                                    <%= c.totalPecas %> peça<%= c.totalPecas === 1 ? '' : 's' %> ·
+                                    R$ <%= c.totalPreco.toFixed(2) %> ·
+                                    salva em <%= new Date(c.criadoEm).toLocaleDateString('pt-BR') %>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="admin-card__acoes">
+                            <a href="/catalogo/configurador?config=<%= c.id %>" class="btn-principal">
+                                Abrir no configurador
+                            </a>
+                        </div>
+
+                        <form method="POST" action="/catalogo/api/configuracoes/<%= c.id %>/excluir" class="admin-card__rejeitar js-form-confirmar" data-confirmar-titulo="Excluir configuração" data-confirmar-mensagem="Excluir essa configuração salva? Essa ação não pode ser desfeita.">
+                            <button type="submit" class="btn-secundario admin-btn-rejeitar">Excluir</button>
+                        </form>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

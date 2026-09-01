@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogo - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+            <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="navPrincipal" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="navPrincipal">
+                <span class="usuario-nome"><%= usuario.nome %></span>
+                <a href="/home">Home</a>
+                <a href="/catalogo">Catalogo</a>
+                <a href="/catalogo/configurador">Configurador</a>
+                <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
+                <% if (usuario.isAdmin) { %><a href="/admin/revisao">Revisão</a><% } %>
+                <a href="/logout" class="sair">Sair</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="catalogo-header">
+            <h1>Catalogo de Pecas</h1>
+            <p>Selecione os componentes para sua bicicleta</p>
+
+            <div class="monitor-preco">
+                <span>Precos atualizados em tempo real</span>
+            </div>
+        </div>
+
+        <form method="GET" action="/catalogo" class="busca-form" role="search">
+            <input
+                type="search"
+                name="busca"
+                value="<%= busca %>"
+                placeholder="Buscar por nome da peça ou marca (ex: quadro, Shimano...)"
+                aria-label="Buscar peças">
+            <button type="submit" class="btn-principal">Buscar</button>
+            <% if (busca) { %>
+                <a href="/catalogo" class="btn-secundario">Limpar</a>
+            <% } %>
+        </form>
+
+        <% if (vazio) { %>
+            <div class="catalogo-vazio">
+                <div class="icone-estado">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M33 8c-4 0-7.5 2.7-8.6 6.4L11 27.8a4.6 4.6 0 1 0 6.5 6.5L30.9 21c3.7-1.1 6.4-4.6 6.4-8.6 0-.8-.1-1.6-.3-2.4l-5 5-3.5-3.5 5-5c-.8-.2-1.6-.3-2.4-.3-.7 0-1.4.1-2.1.3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                        <circle cx="14.5" cy="31" r="1.6" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h2>Catalogo em construcao</h2>
+                <p>Estamos adicionando as melhores pecas para voce</p>
+
+                <div class="recursos">
+                    <div class="recurso">
+                        <h3>Compatibilidade verificada</h3>
+                        <p>Alertas se pecas sao incompativeis</p>
+                    </div>
+                    <div class="recurso">
+                        <h3>Preco sempre atual</h3>
+                        <p>O valor exibido reflete o preco mais recente de cada loja</p>
+                    </div>
+                    <div class="recurso">
+                        <h3>PDF de montagem</h3>
+                        <p>Envie para o mecanico sem erros</p>
+                    </div>
+                    <div class="recurso">
+                        <h3>Visualizacao 3D</h3>
+                        <p>Veja a bike pronta antes de comprar</p>
+                    </div>
+                </div>
+
+                <a href="/catalogo/configurador" class="btn-secundario">
+                    Ir para o configurador
+                </a>
+            </div>
+        <% } else if (semResultadoDaBusca) { %>
+            <div class="catalogo-vazio">
+                <div class="icone-estado">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="21" cy="21" r="12" stroke="currentColor" stroke-width="2.5"/>
+                        <line x1="30" y1="30" x2="40" y2="40" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h2>Nenhuma peça encontrada para "<%= busca %>"</h2>
+                <p>Tente buscar por outro nome ou pela marca da peça.</p>
+                <a href="/catalogo" class="btn-secundario">Ver catálogo completo</a>
+            </div>
+        <% } else { %>
+            <div class="grid-produtos">
+                <% for (let i = 0; i < produtos.length; i++) { %>
+                    <div class="produto-card">
+                        <div class="produto-imagem">
+                            <img src="<%= produtos[i].imagem || '/img/pecas/quadro.svg' %>" alt="<%= produtos[i].nome %>">
+                        </div>
+                        <h3><%= produtos[i].nome %></h3>
+                        <p class="preco">R$ <%= produtos[i].preco.toFixed(2) %></p>
+                        <p class="marca"><%= produtos[i].marca %></p>
+                        <div class="estoque">
+                            <% if (produtos[i].em_estoque) { %>
+                                <span class="em-estoque">Em estoque</span>
+                            <% } else { %>
+                                <span class="sem-estoque">Sem estoque</span>
+                            <% } %>
+                        </div>
+                        <button class="btn-adicionar" onclick="window.location.href='/catalogo/configurador'">
+                            Configurar com essa peça
+                        </button>
+                    </div>
+                <% } %>
+            </div>
+        <% } %>
+
+        <div class="acoes">
+            <a href="/catalogo/configurador" class="btn-principal">
+                Iniciar configuração
+            </a>
+        </div>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

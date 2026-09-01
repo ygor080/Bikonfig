@@ -1,0 +1,14 @@
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+psycopg[binary]>=3.1.0
+anthropic>=0.40.0
+openai>=1.40.0
+python-dotenv>=1.0.0
+
+# API (agora dentro de scraper.py: uvicorn scraper:app --reload)
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
+# Opcional -- só necessário se algum site parceiro precisar de JS rendering
+# (defina "requires_js": True no perfil do site em sites_config.py)
+# playwright>=1.40.0

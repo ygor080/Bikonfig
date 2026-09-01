@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurador - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="stylesheet" href="/css/configurador.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+            <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="navPrincipal" aria-label="Abrir menu">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="navPrincipal">
+                <span class="usuario-nome"><%= usuario.nome %></span>
+                <a href="/home">Home</a>
+                <a href="/catalogo">Catalogo</a>
+                <a href="/catalogo/configurador">Configurador</a>
+                <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
+                <% if (usuario.isAdmin) { %><a href="/admin/revisao">Revisão</a><% } %>
+                <a href="/logout" class="sair">Sair</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="config-wrapper">
+        <aside class="config-menu" id="configMenu">
+            <h2 class="config-menu-titulo">Peças</h2>
+            <% categorias.forEach(function(grupo) { %>
+                <div class="config-grupo" data-grupo="<%= grupo.slug %>">
+                    <button type="button" class="config-grupo-btn">
+                        <span><%= grupo.nome %></span>
+                        <span class="config-grupo-seta">▾</span>
+                    </button>
+                    <ul class="config-subitens">
+                        <% grupo.subcategorias.forEach(function(sub) { %>
+                            <li>
+                                <button type="button"
+                                    class="config-subitem-btn"
+                                    data-subcategoria="<%= sub.slug %>"
+                                    data-nome="<%= sub.nome %>">
+                                    <%= sub.nome %>
+                                    <span class="config-check" data-check="<%= sub.slug %>"></span>
+                                </button>
+                            </li>
+                        <% }); %>
+                    </ul>
+                </div>
+            <% }); %>
+        </aside>
+
+        <section class="config-central">
+            <div class="config-visual" id="configVisual">
+                <svg viewBox="0 0 600 320" id="bikeSvg" xmlns="http://www.w3.org/2000/svg">
+                    <circle id="parte-roda-traseira" cx="140" cy="230" r="70" fill="none" stroke="#ccc" stroke-width="10"/>
+                    <circle id="parte-roda-dianteira" cx="460" cy="230" r="70" fill="none" stroke="#ccc" stroke-width="10"/>
+                    <polyline id="parte-quadro" points="140,230 260,110 380,110 460,230 260,110 300,230 140,230"
+                        fill="none" stroke="#999" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+                    <line id="parte-suspensao" x1="380" y1="110" x2="460" y2="230" stroke="#999" stroke-width="10" stroke-linecap="round"/>
+                    <line id="parte-cockpit" x1="380" y1="110" x2="420" y2="80" stroke="#999" stroke-width="8" stroke-linecap="round"/>
+                    <line id="parte-selim" x1="260" y1="110" x2="245" y2="80" stroke="#999" stroke-width="8" stroke-linecap="round"/>
+                    <circle id="parte-transmissao" cx="300" cy="230" r="26" fill="none" stroke="#999" stroke-width="6"/>
+                    <circle id="parte-freios-d" cx="460" cy="230" r="18" fill="none" stroke="#999" stroke-width="4"/>
+                    <circle id="parte-freios-t" cx="140" cy="230" r="18" fill="none" stroke="#999" stroke-width="4"/>
+                    <circle id="parte-acessorios" cx="300" cy="230" r="6" fill="#999"/>
+                </svg>
+                <p class="config-visual-aviso">Visualização ilustrativa — fotos reais das peças entram em uma próxima etapa.</p>
+            </div>
+
+            <div class="config-lista-pecas" id="configListaPecas">
+                <p class="config-lista-vazio">Selecione uma categoria ao lado para ver as peças disponíveis.</p>
+            </div>
+        </section>
+
+        <aside class="config-orcamento">
+            <h2 class="config-menu-titulo">Resumo da configuração</h2>
+            <ul class="config-orcamento-lista" id="orcamentoLista">
+                <li class="config-orcamento-vazio">Nenhuma peça selecionada ainda.</li>
+            </ul>
+            <div class="config-avisos" id="configAvisos"></div>
+            <div class="config-total">
+                <span>Total</span>
+                <strong id="orcamentoTotal">R$ 0,00</strong>
+            </div>
+            <button type="button" class="btn-principal" id="btnLimparConfig">Limpar seleção</button>
+            <button type="button" class="btn-secundario" id="btnSalvarConfig">
+                Salvar configuração
+            </button>
+            <button type="button" class="btn-secundario" id="btnBaixarPdf">
+                Baixar PDF
+            </button>
+        </aside>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/configurador.js"></script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+
+.config-wrapper {
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 0 20px;
+    align-items: start;
+}
+
+.config-menu,
+.config-orcamento {
+    background: #fff;
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    padding: 16px;
+    position: sticky;
+    top: 84px;
+    max-height: calc(100vh - 104px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.config-menu-titulo {
+    font-family: var(--fonte-display);
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--texto-suave);
+    margin-bottom: 12px;
+}
+
+.config-grupo {
+    border-bottom: 1px solid #f0ece6;
+}
+
+.config-grupo-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tinta);
+    cursor: pointer;
+}
+
+.config-grupo-seta {
+    color: var(--laranja);
+    transition: transform 0.2s ease;
+}
+
+.config-grupo.aberto .config-grupo-seta {
+    transform: rotate(180deg);
+}
+
+.config-subitens {
+    list-style: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+}
+
+.config-grupo.aberto .config-subitens {
+    max-height: 600px;
+}
+
+.config-subitem-btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 8px 8px 8px 16px;
+    font-size: 13px;
+    color: var(--texto-suave);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 5px;
+    transition: background var(--transicao), color var(--transicao);
+}
+
+.config-subitem-btn:hover {
+    background: var(--laranja-claro);
+    color: var(--laranja);
+}
+
+.config-subitem-btn.ativo {
+    background: var(--laranja-claro);
+    color: var(--laranja);
+    font-weight: 600;
+}
+
+.config-check {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ddd;
+    flex-shrink: 0;
+}
+
+.config-check.marcado {
+    background: var(--laranja);
+}
+
+.config-check.parcial {
+    background: #ffcc99;
+    box-shadow: 0 0 0 2px var(--laranja) inset;
+}
+
+.config-lista-topo {
+    margin-bottom: 16px;
+}
+
+.config-posicao-aviso {
+    font-size: 12px;
+    color: var(--texto-suave);
+    margin: 4px 0 12px;
+}
+
+.config-posicao-switch {
+    display: flex;
+    gap: 8px;
+}
+
+.config-posicao-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--texto-suave);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transicao), color var(--transicao), background var(--transicao);
+}
+
+.config-posicao-btn.ativo {
+    border-color: var(--laranja);
+    color: var(--laranja);
+    background: var(--laranja-claro);
+}
+
+.config-posicao-check {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ddd;
+    display: inline-block;
+}
+
+.config-posicao-check.marcado {
+    background: var(--laranja);
+}
+
+.config-central {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.config-visual {
+    background: #fff;
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    padding: 20px;
+    text-align: center;
+}
+
+#bikeSvg {
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+}
+
+#bikeSvg [id^="parte-"] {
+    transition: stroke 0.2s ease, fill 0.2s ease;
+}
+
+.parte-selecionada {
+    stroke: var(--laranja) !important;
+    fill: var(--laranja) !important;
+}
+
+.config-visual-aviso {
+    font-size: 12px;
+    color: #a39c94;
+    margin-top: 10px;
+}
+
+.config-lista-pecas {
+    background: #fff;
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    padding: 20px;
+    min-height: 120px;
+}
+
+.config-lista-titulo {
+    font-size: 16px;
+    margin-bottom: 15px;
+    color: var(--tinta);
+}
+
+.config-lista-vazio {
+    color: #a39c94;
+    font-size: 14px;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.config-produto-card {
+    position: relative;
+}
+
+.tag-opcional {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #fff3e0;
+    color: var(--laranja);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    z-index: 1;
+}
+
+.config-produto-card.selecionado {
+    border-color: var(--laranja);
+    box-shadow: 0 0 0 1px var(--laranja);
+}
+
+.config-orcamento-lista {
+    list-style: none;
+    margin: 10px 0;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.config-orcamento-lista li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0ece6;
+    color: var(--tinta);
+}
+
+.config-orcamento-lista li span:first-of-type {
+    flex: 1;
+}
+
+.orcamento-icone {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    background: var(--fundo);
+    border-radius: 4px;
+    padding: 3px;
+}
+
+.config-orcamento-vazio {
+    color: #a39c94;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.config-avisos {
+    margin: 10px 0;
+}
+
+.config-aviso-compat {
+    background: #fff3e0;
+    color: #b35c00;
+    font-size: 12px;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.config-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    font-family: var(--fonte-display);
+    font-weight: 600;
+    padding: 12px 0;
+    border-top: 1px solid #f0ece6;
+    margin-bottom: 12px;
+}
+
+.config-total strong {
+    color: var(--laranja);
+    font-size: 22px;
+}
+
+.config-orcamento .btn-principal,
+.config-orcamento .btn-secundario {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 1024px) {
+    .config-wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .config-menu,
+    .config-orcamento {
+        position: static;
+        max-height: 60vh;
+    }
+}
+
+@media (max-width: 640px) {
+    .config-wrapper {
+        padding: 0 12px;
+        gap: 14px;
+        margin: 12px auto;
+    }
+
+    .config-menu,
+    .config-orcamento {
+        max-height: 50vh;
+        padding: 14px;
+    }
+
+    .config-visual {
+        padding: 14px;
+    }
+
+    .config-lista-pecas {
+        padding: 14px;
+    }
+
+    .config-posicao-switch {
+        flex-direction: column;
+    }
+}

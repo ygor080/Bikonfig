@@ -1,0 +1,13 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#666" stroke-width="4">
+    <circle cx="60" cy="60" r="46"/>
+    <circle cx="60" cy="60" r="16"/>
+  </g>
+  <g fill="#666">
+    <circle cx="60" cy="14" r="3"/>
+    <circle cx="60" cy="106" r="3"/>
+    <circle cx="14" cy="60" r="3"/>
+    <circle cx="106" cy="60" r="3"/>
+  </g>
+  <circle cx="60" cy="60" r="6" fill="#FF6600"/>
+</svg>

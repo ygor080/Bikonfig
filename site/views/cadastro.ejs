@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar conta - Bikonfig</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho">
+        <div class="container">
+            <a href="/" class="logo">Bikonfig</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="login-box">
+            <h1>Criar conta</h1>
+            <p>Monte sua bicicleta com peças compativeis</p>
+
+            <% if (erro) { %>
+                <div class="erro"><%= erro %></div>
+            <% } %>
+
+            <form method="POST" action="/cadastro" class="form-login" id="formCadastro" novalidate>
+                <label class="campo-label" for="nome">Usuário</label>
+                <input type="text" id="nome" name="nome" placeholder="Usuario" value="<%= valores.nome || '' %>" minlength="3" maxlength="40" required>
+
+                <label class="campo-label" for="email">E-mail</label>
+                <input type="email" id="email" name="email" placeholder="E-mail" value="<%= valores.email || '' %>" required>
+
+                <label class="campo-label" for="senha">Senha</label>
+                <div class="campo-senha">
+                    <input type="password" id="senha" name="senha" placeholder="Crie uma senha forte" minlength="8" required autocomplete="new-password">
+                    <button type="button" class="btn-mostrar-senha" data-alvo="senha" aria-label="Mostrar senha"><svg class="icone-olho" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 10s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg><svg class="icone-olho-riscado" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 10s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/><path d="M2 2l16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                </div>
+
+                <ul class="requisitos-senha" id="requisitosSenha">
+                    <li data-regra="tamanho">Pelo menos 8 caracteres</li>
+                    <li data-regra="maiuscula">Uma letra maiúscula</li>
+                    <li data-regra="minuscula">Uma letra minúscula</li>
+                    <li data-regra="numero">Um número</li>
+                    <li data-regra="especial">Um caractere especial (ex: ! @ # $ %)</li>
+                </ul>
+
+                <label class="campo-label" for="confirmarSenha">Confirmar senha</label>
+                <div class="campo-senha">
+                    <input type="password" id="confirmarSenha" name="confirmarSenha" placeholder="Repita a senha" minlength="8" required autocomplete="new-password">
+                    <button type="button" class="btn-mostrar-senha" data-alvo="confirmarSenha" aria-label="Mostrar senha"><svg class="icone-olho" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 10s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg><svg class="icone-olho-riscado" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 10s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/><path d="M2 2l16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+                </div>
+                <small class="aviso-confirmacao" id="avisoConfirmacao"></small>
+
+                <button type="submit" class="btn-principal">Criar conta</button>
+            </form>
+
+            <div class="info-demo">
+                <small>Já tem conta? <a href="/login">Entrar</a></small>
+            </div>
+        </div>
+    </main>
+
+    <footer class="rodape">
+        <div class="container">
+            <p>Bikonfig - Configurador de bicicletas</p>
+        </div>
+    </footer>
+
+    <script src="/js/auth.js"></script>
+</body>
+</html>

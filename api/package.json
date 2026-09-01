@@ -1,0 +1,18 @@
+{
+  "name": "bikonfig-api",
+  "version": "1.0.0",
+  "description": "Scraper + API: coleta produtos de lojas parceiras autorizadas, categoriza via IA e persiste no PostgreSQL com histórico de preço.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "api": "uvicorn scraper:app --reload --port 8000",
+    "dev": "npm run api"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}

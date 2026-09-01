@@ -1,0 +1,14 @@
+{
+  "name": "bikonfig-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bikonfig: site (site/, Node+Express+EJS) + scraper/API de categorização (api/, Python+FastAPI), banco compartilhado em database/schema.sql.",
+  "scripts": {
+    "site": "npm --prefix site run dev",
+    "api": "npm --prefix api run api",
+    "dev": "concurrently -n SITE,API -c green,cyan \"npm run site\" \"npm run api\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}
