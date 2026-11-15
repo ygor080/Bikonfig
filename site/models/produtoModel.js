@@ -124,7 +124,7 @@ function medidaDoAro(aro) {
 }
 
 function normalizarSpec(valor) {
-    return valor === undefined || valor === null ? null : String(valor).trim().toLowerCase();
+    return valor === undefined || valor === null ? null : String(valor).trim().toLowerCase() || null;
 }
 
 const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
@@ -253,8 +253,33 @@ class ProdutoModel {
     }
 
     static async verificarCompatibilidade(pecasSelecionadas) {
+        return (await this.avaliarCompatibilidade(pecasSelecionadas)).avisos;
+    }
+
+    static async avaliarCompatibilidade(pecasSelecionadas) {
         const avisos = [];
+        const faltantes = [];
+        const comparacoes = new Set();
+        let verificadas = 0;
         const regras = await this.getRegrasCompatibilidade();
+
+        function comparar(pecaA, pecaB, campo, valorA, valorB, mensagem) {
+            const chave = JSON.stringify([[pecaA.id, pecaB.id].sort(), campo]);
+            if (comparacoes.has(chave)) return;
+            comparacoes.add(chave);
+            const resumir = peca => ({ id: peca.id, nome: peca.nome || 'Peça sem nome' });
+            if (valorA === null || valorB === null) {
+                faltantes.push({
+                    campo,
+                    pecas: [resumir(pecaA), resumir(pecaB)],
+                    ausentes: [valorA === null ? pecaA : null, valorB === null ? pecaB : null]
+                        .filter(Boolean).map(resumir)
+                });
+                return;
+            }
+            verificadas++;
+            if (valorA !== valorB) avisos.push(mensagem);
+        }
 
         const pecaAtendeCategoria = (peca, categoriaSlug) =>
             peca.subcategoria === categoriaSlug || peca.categoria === categoriaSlug;
@@ -269,9 +294,7 @@ class ProdutoModel {
 
                     const valorA = normalizarSpec(pecaA.specs?.[regra.spec_key]);
                     const valorB = normalizarSpec(pecaB.specs?.[regra.spec_key]);
-                    if (valorA === null || valorB === null) return;
-
-                    if (valorA !== valorB) avisos.push(regra.description);
+                    comparar(pecaA, pecaB, regra.spec_key, valorA, valorB, regra.description);
                 });
             });
         });
@@ -280,12 +303,19 @@ class ProdutoModel {
         const roda = pecasSelecionadas.find(p => p.categoria === 'rodas');
         const aroQuadro = medidaDoAro(quadro?.aro);
         const aroRoda = medidaDoAro(roda?.aro);
-        if (aroQuadro !== null && aroRoda !== null && aroQuadro !== aroRoda) {
+        if (quadro && roda && quadro.id !== roda.id) {
             const aviso = `A roda selecionada (aro ${roda.aro}) não é compatível com o quadro (aro ${quadro.aro}).`;
-            if (!avisos.includes(aviso)) avisos.push(aviso);
+            comparar(quadro, roda, 'aro', aroQuadro, aroRoda, aviso);
         }
 
-        return [...new Set(avisos)];
+        return {
+            status: avisos.length ? 'incompativel' : faltantes.length ? 'dados_insuficientes'
+                : verificadas ? 'sem_divergencias' : 'nao_verificada',
+            verificadas,
+            pendentes: faltantes.length,
+            faltantes,
+            avisos: [...new Set(avisos)]
+        };
     }
 }
 

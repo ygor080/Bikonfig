@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const codigo = fs.readFileSync(path.join(__dirname, '../public/js/configurador.js'), 'utf8');
 
-async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [] } = {}) {
+async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade } = {}) {
     function elemento() {
         const classes = new Set();
         return {
@@ -26,7 +26,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
     botao.dataset = { subcategoria, nome: 'Categoria' };
     botao.closest = () => grupo;
     const elementos = Object.fromEntries([
-        'configMenu', 'configListaPecas', 'orcamentoLista', 'orcamentoTotal', 'configAvisos', 'configIndisponiveis',
+        'configMenu', 'configListaPecas', 'orcamentoLista', 'orcamentoTotal', 'configAvisos', 'configIndisponiveis', 'configCompatibilidade',
         'btnLimparConfig', 'btnSalvarConfig', 'btnBaixarPdf'
     ].map(id => [id, elemento()]));
     elementos.configMenu.querySelectorAll = selector => selector === '.config-subitem-btn' ? [botao] : [];
@@ -46,7 +46,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
         fetch: async (url, opcoes) => {
             chamadas.push({ url, body: opcoes?.body && JSON.parse(opcoes.body) });
             if (url.includes('/api/pecas/')) return { ok, json: async () => encontrado ? [produto] : [] };
-            if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [], indisponiveis }) };
+            if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [], indisponiveis, compatibilidade }) };
             if (url === '/catalogo/api/configuracoes') return { ok: true };
             return { ok: true, json: async () => montagem || ({ itens: [] }) };
         }
@@ -114,4 +114,27 @@ test('montagem reaberta mostra aviso persistente com peças e posições indispo
         [{ id: 'produto-1', posicao: null }]);
     r.elementos.btnLimparConfig.listeners.click();
     assert.equal(r.elementos.configIndisponiveis.textContent, '');
+});
+
+test('interface mostra especificação ausente e nome da peça, mesmo com incompatibilidade', async () => {
+    const r = await abrir({ compatibilidade: {
+        status: 'incompativel', verificadas: 1, pendentes: 1,
+        faltantes: [{ campo: 'aro', pecas: [{ nome: 'Quadro' }, { nome: 'Pneu' }], ausentes: [{ nome: 'Pneu' }] }]
+    } });
+    const linhas = r.elementos.configCompatibilidade.children;
+    assert.match(linhas[0].textContent, /Incompatibilidade encontrada/);
+    assert.match(linhas[1].textContent, /falta a especificação "aro" em Pneu/);
+    r.elementos.btnLimparConfig.listeners.click();
+    assert.equal(r.elementos.configCompatibilidade.textContent, '');
+});
+
+test('interface distingue dados insuficientes, sem divergências e ausência de regras aplicáveis', async () => {
+    for (const [status, mensagem] of [
+        ['dados_insuficientes', /Dados insuficientes/],
+        ['sem_divergencias', /Isso não garante a compatibilidade completa/],
+        ['nao_verificada', /Compatibilidade não verificada/]
+    ]) {
+        const r = await abrir({ compatibilidade: { status, faltantes: [] } });
+        assert.match(r.elementos.configCompatibilidade.children[0].textContent, mensagem);
+    }
 });

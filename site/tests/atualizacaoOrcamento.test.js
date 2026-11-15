@@ -26,7 +26,7 @@ function preparar() {
     const contexto = {
         document: {
             addEventListener: (_, acao) => { iniciar = acao; },
-            getElementById: elemento, querySelectorAll: () => []
+            getElementById: id => id === 'configCompatibilidade' ? null : elemento(id), querySelectorAll: () => []
         },
         window: { location: { search: '' } }, URLSearchParams,
         console: { error() {} },

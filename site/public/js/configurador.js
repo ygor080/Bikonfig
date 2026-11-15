@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const orcamentoListaEl = document.getElementById('orcamentoLista');
     const orcamentoTotalEl = document.getElementById('orcamentoTotal');
     const avisosEl = document.getElementById('configAvisos');
+    const compatibilidadeEl = document.getElementById('configCompatibilidade');
     const indisponiveisEl = document.getElementById('configIndisponiveis');
     const btnLimpar = document.getElementById('btnLimparConfig');
     const btnSalvarConfig = document.getElementById('btnSalvarConfig');
@@ -289,10 +290,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let versaoOrcamento = 0;
 
+    function mostrarCompatibilidade(relatorio) {
+        if (!compatibilidadeEl) return;
+        compatibilidadeEl.textContent = '';
+        const mensagens = {
+            incompativel: 'Incompatibilidade encontrada nas regras verificadas.',
+            dados_insuficientes: 'Dados insuficientes para concluir as verificações de compatibilidade.',
+            sem_divergencias: 'Sem divergências nas regras verificadas. Isso não garante a compatibilidade completa da montagem.',
+            nao_verificada: 'Compatibilidade não verificada: ainda não há pares de peças com regras aplicáveis nesta seleção.'
+        };
+        const estado = relatorio?.status;
+        const resumo = document.createElement('p');
+        resumo.className = 'config-aviso-compat';
+        resumo.textContent = mensagens[estado] || 'Verificação de compatibilidade indisponível.';
+        compatibilidadeEl.appendChild(resumo);
+        (relatorio?.faltantes || []).forEach(function (falta) {
+            const detalhe = document.createElement('p');
+            detalhe.className = 'config-aviso-compat';
+            detalhe.textContent = 'Não foi possível comparar ' + falta.pecas.map(p => p.nome).join(' e ')
+                + ': falta a especificação "' + falta.campo + '" em ' + falta.ausentes.map(p => p.nome).join(' e ') + '.';
+            compatibilidadeEl.appendChild(detalhe);
+        });
+    }
+
     async function atualizarOrcamento() {
         // Invalida também requisições pendentes quando a seleção é limpa.
         const versao = ++versaoOrcamento;
         const entradas = Object.values(selecionadas);
+        if (compatibilidadeEl) compatibilidadeEl.textContent = '';
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = false;
 
         if (entradas.length === 0) {
@@ -341,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
             avisosEl.innerHTML = (dados.avisos || []).map(function (aviso) {
                 return '<p class="config-aviso-compat">⚠ ' + aviso + '</p>';
             }).join('');
+            mostrarCompatibilidade(dados.compatibilidade);
         } catch (erro) {
             if (versao !== versaoOrcamento) return;
             console.error('Erro ao atualizar orcamento', erro);

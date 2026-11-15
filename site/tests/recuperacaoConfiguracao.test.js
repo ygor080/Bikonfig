@@ -14,7 +14,7 @@ function controlador(itensSalvos, produtos) {
         },
         '../models/produtoModel': {
             buscarVariosPorId: async ids => produtos.filter(p => ids.includes(p.id)),
-            verificarCompatibilidade: async () => []
+            avaliarCompatibilidade: async () => ({ status: 'nao_verificada', verificadas: 0, pendentes: 0, faltantes: [], avisos: [] })
         },
         pdfkit: function () {}
     };

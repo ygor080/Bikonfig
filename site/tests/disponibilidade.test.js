@@ -25,7 +25,7 @@ function preparar() {
     const controller = carregar('../controllers/catalogoController.js', {
         '../models/produtoModel': {
             buscarVariosPorId: async ids => produtos.filter(p => ids.includes(p.id)),
-            verificarCompatibilidade: async p => { assert.equal(p.length, 1); return []; }
+            avaliarCompatibilidade: async p => { assert.equal(p.length, 1); return { status: 'nao_verificada', verificadas: 0, pendentes: 0, faltantes: [], avisos: [] }; }
         },
         '../models/configuracaoModel': {
             buscarPorId: async () => ({ id: 'config', nome: 'Montagem' }),

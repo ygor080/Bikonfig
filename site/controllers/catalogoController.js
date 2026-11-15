@@ -40,7 +40,8 @@ const catalogoController = {
             const { ids } = req.body;
 
             if (!Array.isArray(ids) || ids.length === 0) {
-                return res.json({ pecas: [], total: 0, avisos: [] });
+                return res.json({ pecas: [], total: 0, avisos: [], indisponiveis: [],
+                    compatibilidade: { status: 'nao_verificada', verificadas: 0, pendentes: 0, faltantes: [] } });
             }
 
             const idsUnicos = [...new Set(ids)];
@@ -49,11 +50,12 @@ const catalogoController = {
 
             const pecas = ids.map(id => porId.get(id)).filter(Boolean);
             const total = pecas.reduce((soma, peca) => soma + Number(peca.preco), 0);
-            const avisos = await ProdutoModel.verificarCompatibilidade(produtosUnicos);
+            const compatibilidade = await ProdutoModel.avaliarCompatibilidade(produtosUnicos);
+            const avisos = [...compatibilidade.avisos];
             const indisponiveis = idsUnicos.filter(id => !porId.has(id));
             if (indisponiveis.length) avisos.push('Há peças indisponíveis na seleção. O total considera somente as peças disponíveis; substitua as demais antes de salvar ou exportar.');
 
-            res.json({ pecas, total, avisos, indisponiveis });
+            res.json({ pecas, total, avisos, indisponiveis, compatibilidade });
         } catch (erro) {
             console.error('Erro ao calcular orçamento:', erro);
             res.status(500).json({ erro: 'Erro ao calcular orçamento' });
