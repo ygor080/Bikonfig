@@ -195,3 +195,23 @@ WHERE ph1.recorded_at = (SELECT MAX(recorded_at) FROM price_history WHERE produc
 - Criar um endpoint/admin simples para revisar produtos com `needs_review = true`.
 - Adicionar retry/backoff em `fetch_html` para falhas de rede transitórias.
 - Expandir `compatibility_rules` conforme forem aparecendo mais casos reais de incompatibilidade.
+
+## Fabricante e loja (etapa 9)
+
+Aplique `../database/migrations/009_fabricante_produto.sql` no banco
+compartilhado antes de executar esta versão da coleta/API. O campo
+`products.manufacturer` é opcional e independente de `sources.name`.
+O endpoint `/api/products` devolve `manufacturer` e `source_name`.
+
+Para Shopify, o perfil pode declarar `manufacturer_field: "vendor"`
+**somente após verificar** que `vendor` identifica fabricantes naquela
+loja. Sem mapeamento, o fabricante permanece desconhecido. Para HTML,
+configure o seletor opcional `manufacturer`, por exemplo `.product-brand`.
+Não se usa o título do anúncio ou nome da loja como substituto.
+
+`upsert_product` aceita o argumento opcional `manufacturer`; valores
+ausentes não apagam um fabricante existente. A revisão administrativa
+do site permite corrigir ou limpar esse campo explicitamente.
+
+Os testes isolados dessa coleta podem ser executados sem rede, IA ou
+banco com `python -m unittest discover -s api/tests` a partir da raiz.

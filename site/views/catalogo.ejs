@@ -43,8 +43,8 @@
                 type="search"
                 name="busca"
                 value="<%= busca %>"
-                placeholder="Buscar por nome da peça ou marca (ex: quadro, Shimano...)"
-                aria-label="Buscar peças">
+                placeholder="Buscar por peça, fabricante ou loja (ex: quadro, Shimano...)"
+                aria-label="Buscar por peça, fabricante ou loja">
             <button type="submit" class="btn-principal">Buscar</button>
             <% if (busca) { %>
                 <a href="/catalogo" class="btn-secundario">Limpar</a>
@@ -94,7 +94,7 @@
                     </svg>
                 </div>
                 <h2>Nenhuma peça encontrada para "<%= busca %>"</h2>
-                <p>Tente buscar por outro nome ou pela marca da peça.</p>
+                <p>Tente buscar por outro nome, fabricante ou loja.</p>
                 <a href="/catalogo" class="btn-secundario">Ver catálogo completo</a>
             </div>
         <% } else { %>
@@ -106,7 +106,8 @@
                         </div>
                         <h3><%= produtos[i].nome %></h3>
                         <p class="preco">R$ <%= produtos[i].preco.toFixed(2) %></p>
-                        <p class="marca"><%= produtos[i].marca %></p>
+                        <p class="fabricante">Fabricante: <%= produtos[i].fabricante || 'Não informado' %></p>
+                        <p class="loja">Loja: <%= produtos[i].loja %></p>
                         <div class="estoque">
                             <% if (produtos[i].em_estoque) { %>
                                 <span class="em-estoque">Em estoque</span>

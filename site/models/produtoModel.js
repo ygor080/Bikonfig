@@ -6,7 +6,8 @@ const CAMPOS_PRODUTO = `
     c.slug AS subcategoria,
     COALESCE(parent.slug, c.slug) AS categoria,
     COALESCE(p.current_price, 0) AS preco,
-    s.name AS marca,
+    NULLIF(BTRIM(p.manufacturer), '') AS fabricante,
+    s.name AS loja,
     p.product_url AS link,
     NULLIF(p.specs->>'aro', '') AS aro,
     p.specs AS specs,
@@ -170,7 +171,7 @@ class ProdutoModel {
         const { rows } = await pool.query(
             `SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO}
              WHERE ${PRODUTO_DISPONIVEL_SQL}
-             AND ($1::text IS NULL OR p.name ILIKE $1 OR s.name ILIKE $1)
+             AND ($1::text IS NULL OR p.name ILIKE $1 OR p.manufacturer ILIKE $1 OR s.name ILIKE $1)
              ORDER BY ${ORDEM_PRIORIDADE_SQL}, p.name`,
             [termo]
         );
@@ -196,7 +197,8 @@ class ProdutoModel {
         const { rows } = await pool.query(`
             SELECT
                 p.id, p.name AS nome, p.product_url, p.image_url AS imagem,
-                COALESCE(p.current_price, 0) AS preco, s.name AS marca,
+                COALESCE(p.current_price, 0) AS preco,
+                NULLIF(BTRIM(p.manufacturer), '') AS fabricante, s.name AS loja,
                 p.specs, p.ai_confidence AS confianca, p.is_optional AS opcional,
                 c.slug AS categoria_atual, c.name AS categoria_atual_nome
             FROM products p
@@ -218,7 +220,7 @@ class ProdutoModel {
         return rows;
     }
 
-    static async aprovarProduto(id, { categoriaSlug, specs } = {}) {
+    static async aprovarProduto(id, { categoriaSlug, specs, fabricante } = {}) {
         const campos = ['needs_review = false'];
         const valores = [];
         let indice = 1;
@@ -231,6 +233,12 @@ class ProdutoModel {
         if (specs) {
             campos.push(`specs = $${indice}::jsonb`);
             valores.push(JSON.stringify(specs));
+            indice++;
+        }
+
+        if (fabricante !== undefined) {
+            campos.push(`manufacturer = $${indice}`);
+            valores.push(fabricante && fabricante.trim() || null);
             indice++;
         }
 

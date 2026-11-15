@@ -76,6 +76,7 @@
 }
 
 .admin-card__form select,
+.admin-card__form input,
 .admin-card__form textarea {
     padding: 8px;
     border-radius: 6px;

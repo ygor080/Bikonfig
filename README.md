@@ -72,8 +72,9 @@ quando quiser coletar produtos de uma loja parceira.
 `products`, `price_history`, `compatibility_rules`, `usuarios`,
 `configuracoes` e `configuracao_itens`. Para bancos novos, use o schema
 completo. Para bases existentes, as alterações incrementais ficam em
-`database/migrations/`; a etapa 8 requer `008_tipo_montagem.sql` antes
-da publicação do código.
+`database/migrations/`; aplique as migrações correspondentes antes de
+publicar: `008_tipo_montagem.sql` (etapa 8) e
+`009_fabricante_produto.sql` (etapa 9).
 
 A coluna `is_admin` (controla o acesso à tela de revisão de produtos) só é
 alterada com `UPDATE` direto no banco — não existe nenhum jeito de virar
@@ -117,6 +118,28 @@ motivo. Ver `api/README.md` para detalhes e exemplos de como adicionar
 novas regras.
 
 ## Front-end
+
+### Fabricante e loja
+
+`products.manufacturer` armazena o fabricante do produto; `sources.name`
+continua sendo a loja que publicou a oferta. O site devolve os campos
+`fabricante` e `loja`, apresenta ambos no catálogo e configurador e permite
+pesquisar por nome, fabricante ou loja. Fabricante ausente aparece como
+"Não informado"; não se copia o nome da loja nem se deduz pelo título.
+A revisão administrativa permite preencher, corrigir ou limpar o fabricante.
+
+**Antes de publicar a etapa 9**, aplique
+`database/migrations/009_fabricante_produto.sql` no banco compartilhado.
+A migração apenas adiciona a coluna opcional; produtos existentes ficam
+com fabricante desconhecido até coleta explícita ou revisão manual.
+
+Na coleta Shopify, configure `manufacturer_field` no perfil apenas após
+verificar qual campo representa o fabricante naquela fonte. Não há
+mapeamento automático de `vendor`, pois ele também pode ser a própria
+loja. Em fontes HTML, o seletor opcional `manufacturer` deve apontar para
+a identificação explícita do fabricante. Recoletas sem esse dado preservam
+o fabricante já registrado. A API Python mantém `source_name` e acrescenta
+`manufacturer` como campos independentes.
 
 ### Componentes essenciais e tipo de montagem
 

@@ -42,7 +42,10 @@ const adminController = {
 
     aprovarProduto: async (req, res) => {
         const { id } = req.params;
-        const { categoria, specsTexto } = req.body;
+        const { categoria, specsTexto, fabricante } = req.body;
+        if (fabricante !== undefined && (typeof fabricante !== 'string' || fabricante.trim().length > 200)) {
+            return res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Informe um fabricante de até 200 caracteres ou deixe o campo vazio.'));
+        }
 
         if (!categoria) {
             return res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Escolha uma categoria antes de aprovar.'));
@@ -50,7 +53,8 @@ const adminController = {
 
         await ProdutoModel.aprovarProduto(id, {
             categoriaSlug: categoria,
-            specs: parseSpecsTexto(specsTexto)
+            specs: parseSpecsTexto(specsTexto),
+            fabricante
         });
 
         res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Produto aprovado.'));

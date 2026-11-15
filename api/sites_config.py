@@ -6,6 +6,8 @@ Cada loja tem uma "platform":
 - "shopify": não precisa de seletor CSS nenhum. O scraper usa o endpoint
   JSON público que toda loja Shopify expõe (/collections/<handle>/products.json),
   com paginação automática. Basta declarar display_name e platform.
+  manufacturer_field é opcional: use "vendor" somente se tiver confirmado
+  que esse campo identifica o fabricante nessa loja, e não o próprio lojista.
 
 - "custom_html": para lojas que não são Shopify (WooCommerce, VTEX,
   Nuvemshop, sistema próprio etc.). Aqui você ainda precisa configurar os
@@ -22,7 +24,9 @@ Para adicionar uma loja que não é Shopify:
 1. Abra a página de listagem de produtos da loja no navegador
 2. Use o DevTools (aba Elements, não Network) para achar os seletores CSS
    do card do produto, nome, preço, imagem e link
-3. Adicione uma entrada abaixo com platform="custom_html" e os seletores
+3. Adicione uma entrada abaixo com platform="custom_html" e os seletores.
+   O seletor opcional "manufacturer" deve apontar ao fabricante explícito
+   do produto. Se ausente, o fabricante permanece desconhecido.
 """
 
 SITE_PROFILES = {

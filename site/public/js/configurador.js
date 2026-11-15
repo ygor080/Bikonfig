@@ -168,6 +168,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderizarGrid(pecas, subcategoria, nomeSub, posicao, alvo) {
+        const textoSeguro = valor => String(valor).replace(/[&<>"']/g, caractere => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[caractere]);
         const multipla = CATEGORIAS_MULTIPLAS.includes(subcategoria);
         const chaveAtual = posicao ? (subcategoria + '::' + posicao) : subcategoria;
         const selecionadaAtual = selecionadas[chaveAtual];
@@ -188,7 +191,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         '<div class="produto-imagem"><img src="' + (peca.imagem || '/img/pecas/quadro.svg') + '" alt="' + peca.nome + '"></div>' +
                         '<h3>' + peca.nome + '</h3>' +
                         '<p class="preco">R$ ' + peca.preco.toFixed(2) + '</p>' +
-                        '<p class="marca">' + peca.marca + (peca.aro ? ' · Aro ' + peca.aro : '') + '</p>' +
+                        '<p class="fabricante">Fabricante: ' + textoSeguro(peca.fabricante || 'Não informado') + '</p>' +
+                        '<p class="loja">Loja: ' + textoSeguro(peca.loja || 'Não informada') + '</p>' +
+                        (peca.aro ? '<p class="fabricante">Aro: ' + textoSeguro(peca.aro) + '</p>' : '') +
                         '<button type="button" class="btn-adicionar" data-selecionar="' + peca.id + '">' +
                             (ativo ? (multipla ? 'Selecionado ✓ (remover)' : 'Selecionado ✓') : 'Selecionar') +
                         '</button>' +

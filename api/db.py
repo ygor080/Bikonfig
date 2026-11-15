@@ -99,6 +99,7 @@ def upsert_product(
     ai_confidence: float | None,
     needs_review: bool,
     is_optional: bool = False,
+    manufacturer: str | None = None,
 ) -> str:
     """
     Insere ou atualiza um produto. Se o preço mudou em relação ao que já
@@ -107,6 +108,8 @@ def upsert_product(
 
     Retorna o UUID do produto.
     """
+    manufacturer = " ".join(manufacturer.split()) if isinstance(manufacturer, str) else None
+    manufacturer = manufacturer or None
     category_id = get_category_id(conn, category_slug) if category_slug else None
 
     with conn.cursor() as cur:
@@ -132,23 +135,24 @@ def upsert_product(
                     ai_confidence = COALESCE(%s, ai_confidence),
                     needs_review = %s,
                     is_optional = %s,
+                    manufacturer = COALESCE(%s, manufacturer),
                     updated_at = now()
                 WHERE id = %s
                 """,
                 (name, image_url, price, category_id, json.dumps(specs),
-                 ai_confidence, needs_review, is_optional, product_id),
+                 ai_confidence, needs_review, is_optional, manufacturer, product_id),
             )
         else:
             cur.execute(
                 """
                 INSERT INTO products
                     (source_id, category_id, name, product_url, image_url,
-                     current_price, specs, ai_confidence, needs_review, is_optional)
-                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s)
+                     current_price, specs, ai_confidence, needs_review, is_optional, manufacturer)
+                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (source_id, category_id, name, product_url, image_url,
-                 price, json.dumps(specs), ai_confidence, needs_review, is_optional),
+                 price, json.dumps(specs), ai_confidence, needs_review, is_optional, manufacturer),
             )
             product_id = cur.fetchone()["id"]
             price_changed = price is not None

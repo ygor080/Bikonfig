@@ -109,7 +109,7 @@ def fetch_html(url: str, requires_js: bool) -> str:
         resp.raise_for_status()
         return resp.text
 
-def collect_products_shopify(url: str) -> list[dict]:
+def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict]:
     """
     Coleta TODOS os produtos de uma coleção Shopify usando o endpoint JSON
     público, paginando automaticamente até a API devolver uma lista vazia.
@@ -118,6 +118,7 @@ def collect_products_shopify(url: str) -> list[dict]:
     Aceita a mesma URL de coleção que você usaria no navegador, ex:
     https://qualquerloja.com.br/collections/componentes
     """
+    profile = profile or {}
     parsed = urlparse(url)
     base = f"{parsed.scheme}://{parsed.netloc}"
 
@@ -162,6 +163,9 @@ def collect_products_shopify(url: str) -> list[dict]:
 
             products.append({
                 "name": (prod.get("title") or "").strip(),
+                # "vendor" pode identificar o lojista. Só usar após verificar
+                # que o campo representa o fabricante nesta fonte específica.
+                "manufacturer": prod.get(profile["manufacturer_field"]) if profile.get("manufacturer_field") else None,
                 "raw_price_text": variant.get("price") or "",
                 "price": parse_shopify_price(variant.get("price")),
                 "image_url": image_url,
@@ -190,6 +194,7 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
         price_el = card.select_one(profile["price"])
         image_el = card.select_one(profile["image"])
         link_el = card.select_one(profile["link"])
+        manufacturer_el = card.select_one(profile["manufacturer"]) if profile.get("manufacturer") else None
 
         if not (name_el and link_el):
             continue
@@ -201,6 +206,7 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
 
         products.append({
             "name": name,
+            "manufacturer": manufacturer_el.get_text(" ", strip=True) if manufacturer_el else None,
             "raw_price_text": raw_price_text,
             "price": parse_price(raw_price_text),
             "image_url": image_url,
@@ -224,7 +230,7 @@ def scrape_and_store(url: str) -> int:
 
     if platform == "shopify":
         print(f"Coletando via API Shopify: {domain}")
-        raw_products = collect_products_shopify(url)
+        raw_products = collect_products_shopify(url, profile)
     elif platform == "custom_html":
         raw_products = collect_products_custom_html(url, profile)
     else:
@@ -261,6 +267,7 @@ def scrape_and_store(url: str) -> int:
             ai_confidence=ai_result["confianca"],
             needs_review=needs_review,
             is_optional=ai_result["opcional"],
+            manufacturer=item.get("manufacturer"),
         )
 
         flag = "⚠ revisar" if needs_review else "✓"
@@ -293,6 +300,7 @@ def get_products():
             SELECT
                 p.id,
                 p.name,
+                p.manufacturer,
                 p.current_price,
                 p.image_url,
                 p.product_url,
@@ -319,6 +327,7 @@ def get_products():
         formatted.append({
             "id": str(p["id"]),
             "name": p["name"],
+            "manufacturer": p["manufacturer"],
             "current_price": float(p["current_price"]) if p["current_price"] else None,
             "image_url": p["image_url"],
             "product_url": p["product_url"],
