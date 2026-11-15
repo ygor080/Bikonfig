@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnLimpar = document.getElementById('btnLimparConfig');
     const btnSalvarConfig = document.getElementById('btnSalvarConfig');
     const btnBaixarPdf = document.getElementById('btnBaixarPdf');
+    const btnAtualizarOrcamento = document.getElementById('btnAtualizarOrcamento');
 
     const MAPA_SVG = {
         'quadro': 'parte-quadro',
@@ -286,8 +287,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    let versaoOrcamento = 0;
+
     async function atualizarOrcamento() {
+        // Invalida também requisições pendentes quando a seleção é limpa.
+        const versao = ++versaoOrcamento;
         const entradas = Object.values(selecionadas);
+        if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = false;
 
         if (entradas.length === 0) {
             orcamentoListaEl.innerHTML = '<li class="config-orcamento-vazio">Nenhuma peça selecionada ainda.</li>';
@@ -302,6 +308,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
         const ids = entradas.map(p => p.id);
+        orcamentoTotalEl.textContent = 'Calculando...';
+        avisosEl.textContent = '';
+        if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = true;
 
         try {
             const resposta = await fetch('/catalogo/api/orcamento', {
@@ -309,7 +318,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids })
             });
+            if (versao !== versaoOrcamento) return;
+            if (!resposta.ok) throw new Error('Falha ao consultar orçamento.');
             const dados = await resposta.json();
+            if (versao !== versaoOrcamento) return;
+            if (typeof dados.total !== 'number' || !Number.isFinite(dados.total) || dados.total < 0
+                || !Array.isArray(dados.avisos)) {
+                throw new Error('Resposta de orçamento inválida.');
+            }
 
             orcamentoTotalEl.textContent = 'R$ ' + dados.total.toFixed(2);
             const idsIndisponiveis = new Set(dados.indisponiveis || []);
@@ -326,9 +342,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 return '<p class="config-aviso-compat">⚠ ' + aviso + '</p>';
             }).join('');
         } catch (erro) {
+            if (versao !== versaoOrcamento) return;
             console.error('Erro ao atualizar orcamento', erro);
+            orcamentoTotalEl.textContent = 'Indisponível';
+            avisosEl.textContent = 'Não foi possível atualizar o orçamento. Clique em "Atualizar orçamento" para tentar novamente.';
+        } finally {
+            if (versao === versaoOrcamento && btnAtualizarOrcamento) {
+                btnAtualizarOrcamento.disabled = false;
+            }
         }
     }
+
+    if (btnAtualizarOrcamento) btnAtualizarOrcamento.addEventListener('click', atualizarOrcamento);
 
     btnLimpar.addEventListener('click', function () {
         Object.keys(selecionadas).forEach(key => delete selecionadas[key]);
