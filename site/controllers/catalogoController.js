@@ -37,7 +37,13 @@ const catalogoController = {
 
     calcularOrcamento: async (req, res) => {
         try {
-            const { ids } = req.body;
+            const entradas = Array.isArray(req.body.itens) ? req.body.itens
+                : Array.isArray(req.body.ids) ? req.body.ids.map(id => ({ id })) : [];
+            if (entradas.some(item => !item || typeof item.id !== 'string'
+                || (item.posicao != null && !['dianteira', 'traseira'].includes(item.posicao)))) {
+                return res.status(400).json({ erro: 'Informe peças e posições válidas para calcular o orçamento.' });
+            }
+            const ids = entradas.map(item => item.id);
 
             if (!Array.isArray(ids) || ids.length === 0) {
                 return res.json({ pecas: [], total: 0, avisos: [], indisponiveis: [],
@@ -50,7 +56,14 @@ const catalogoController = {
 
             const pecas = ids.map(id => porId.get(id)).filter(Boolean);
             const total = pecas.reduce((soma, peca) => soma + Number(peca.preco), 0);
-            const compatibilidade = await ProdutoModel.avaliarCompatibilidade(produtosUnicos);
+            const porAplicacao = new Map();
+            entradas.forEach(item => {
+                const produto = porId.get(item.id);
+                if (produto) porAplicacao.set(JSON.stringify([item.id, item.posicao || null]), {
+                    ...produto, posicao: item.posicao || null
+                });
+            });
+            const compatibilidade = await ProdutoModel.avaliarCompatibilidade([...porAplicacao.values()]);
             const avisos = [...compatibilidade.avisos];
             const indisponiveis = idsUnicos.filter(id => !porId.has(id));
             if (indisponiveis.length) avisos.push('Há peças indisponíveis na seleção. O total considera somente as peças disponíveis; substitua as demais antes de salvar ou exportar.');

@@ -71,6 +71,8 @@ test('pneu entra somente na dianteira e informa como escolher a traseira', async
     const r = await abrir({ subcategoria: 'pneus' });
     assert.deepEqual(r.chamadas.find(c => c.url.endsWith('/api/configuracoes')).body.itens,
         [{ id: 'produto-1', posicao: 'dianteira' }]);
+    assert.deepEqual(r.chamadas.find(c => c.url.endsWith('/api/orcamento')).body.itens,
+        [{ id: 'produto-1', posicao: 'dianteira' }]);
     assert.ok(r.avisos.some(a => a.includes('posição dianteira')));
 });
 

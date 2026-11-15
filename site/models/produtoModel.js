@@ -252,30 +252,83 @@ class ProdutoModel {
     static async avaliarCompatibilidade(pecasSelecionadas) {
         const avisos = [];
         const faltantes = [];
+        const divergencias = [];
         const comparacoes = new Set();
         let verificadas = 0;
-        const regras = await this.getRegrasCompatibilidade();
+        // Corrige também bases anteriores à revisão das regras no schema.
+        const regras = (await this.getRegrasCompatibilidade()).filter(regra => !(regra.spec_key === 'velocidades'
+            && [regra.category_a, regra.category_b].includes('pedivela-coroa')
+            && [regra.category_a, regra.category_b].includes('cambio-dianteiro-desviador'))).map(regra => {
+            const par = [regra.category_a, regra.category_b];
+            if (regra.spec_key === 'velocidades' && par.includes('cambio-dianteiro-desviador') && par.includes('pedivela')) {
+                return { ...regra, spec_key: 'numero_coroas', description: 'Confira o número de coroas suportado pelo câmbio dianteiro e pelo pedivela.' };
+            }
+            if (regra.spec_key === 'velocidades' && par.includes('rodas-cubo-traseiro') && par.includes('cassete')) {
+                return { ...regra, spec_key: 'padrao_freehub', description: 'Confira o padrão de encaixe do cassete no corpo do cubo traseiro.' };
+            }
+            return regra;
+        });
+
+        const camposPorPosicao = new Set(['aro', 'diametro_eixo', 'padrao_freio']);
+        const categoriasComPosicao = new Set(['rodas', 'pneus', 'rodas-camara-ar', 'rodas-cubo', 'rodas-aro', 'rodas-raio',
+            'fixacao-roda', 'freios', 'freios-disco', 'freios-pastilha', 'freios-cabo', 'freios-manete']);
+        function posicaoDaPeca(peca, campo) {
+            if (!camposPorPosicao.has(campo)) return null;
+            const slug = peca.subcategoria || peca.categoria || '';
+            if (slug === 'quadro-garfo' || /-dianteir[ao](?:-|$)/.test(slug)) return 'dianteira';
+            if (slug === 'quadro' || /-traseir[ao](?:-|$)/.test(slug)) return 'traseira';
+            return ['dianteira', 'traseira'].includes(peca.posicao) ? peca.posicao : null;
+        }
+        const resumir = (peca, campo) => ({ id: peca.id, nome: peca.nome || 'Peça sem nome', posicao: posicaoDaPeca(peca, campo) });
+        const rotulo = (peca, campo) => {
+            const resumo = resumir(peca, campo);
+            return resumo.nome + (resumo.posicao ? ` (${resumo.posicao})` : '');
+        };
 
         function comparar(pecaA, pecaB, campo, valorA, valorB, mensagem) {
-            const chave = JSON.stringify([[pecaA.id, pecaB.id].sort(), campo]);
+            const posicaoA = posicaoDaPeca(pecaA, campo);
+            const posicaoB = posicaoDaPeca(pecaB, campo);
+            if (posicaoA && posicaoB && posicaoA !== posicaoB) return;
+            const chave = JSON.stringify([[JSON.stringify([pecaA.id, posicaoA]), JSON.stringify([pecaB.id, posicaoB])].sort(), campo]);
             if (comparacoes.has(chave)) return;
             comparacoes.add(chave);
-            const resumir = peca => ({ id: peca.id, nome: peca.nome || 'Peça sem nome' });
+            const semPosicao = [pecaA, pecaB].filter(peca => camposPorPosicao.has(campo)
+                && categoriasComPosicao.has(peca.subcategoria || peca.categoria) && !posicaoDaPeca(peca, campo));
+            if (semPosicao.length) {
+                const chavePosicao = JSON.stringify([[pecaA.id, pecaB.id].sort(), 'posicao']);
+                if (!comparacoes.has(chavePosicao)) {
+                    comparacoes.add(chavePosicao);
+                    faltantes.push({ campo: 'posicao', pecas: [resumir(pecaA, campo), resumir(pecaB, campo)],
+                        ausentes: semPosicao.map(peca => resumir(peca, campo)) });
+                }
+                return;
+            }
             if (valorA === null || valorB === null) {
                 faltantes.push({
                     campo,
-                    pecas: [resumir(pecaA), resumir(pecaB)],
+                    pecas: [resumir(pecaA, campo), resumir(pecaB, campo)],
                     ausentes: [valorA === null ? pecaA : null, valorB === null ? pecaB : null]
-                        .filter(Boolean).map(resumir)
+                        .filter(Boolean).map(peca => resumir(peca, campo))
                 });
                 return;
             }
             verificadas++;
-            if (valorA !== valorB) avisos.push(mensagem);
+            if (valorA !== valorB) {
+                const original = peca => peca.specs?.[campo] ?? (campo === 'aro' ? peca.aro : null);
+                divergencias.push({ campo, pecas: [resumir(pecaA, campo), resumir(pecaB, campo)],
+                    valores: [original(pecaA), original(pecaB)], normalizados: [valorA, valorB] });
+                avisos.push(`${mensagem} ${rotulo(pecaA, campo)}: ${original(pecaA)}; ${rotulo(pecaB, campo)}: ${original(pecaB)}. Atributo: ${campo}.`);
+            }
         }
 
-        const pecaAtendeCategoria = (peca, categoriaSlug) =>
-            peca.subcategoria === categoriaSlug || peca.categoria === categoriaSlug;
+        const gruposRestritos = {
+            quadro: ['quadro'],
+            rodas: ['rodas', 'rodas-dianteira', 'rodas-traseira'],
+            freios: ['freios', 'freios-dianteiro', 'freios-traseiro']
+        };
+        const pecaAtendeCategoria = (peca, categoriaSlug) => gruposRestritos[categoriaSlug]
+            ? gruposRestritos[categoriaSlug].includes(peca.subcategoria || peca.categoria)
+            : peca.subcategoria === categoriaSlug || peca.categoria === categoriaSlug;
 
         regras.forEach(regra => {
             const pecasA = pecasSelecionadas.filter(p => pecaAtendeCategoria(p, regra.category_a));
@@ -292,14 +345,12 @@ class ProdutoModel {
             });
         });
 
-        const quadro = pecasSelecionadas.find(p => p.subcategoria === 'quadro' || p.categoria === 'quadro');
-        const roda = pecasSelecionadas.find(p => p.categoria === 'rodas');
-        const aroQuadro = normalizarSpec(quadro?.aro ?? quadro?.specs?.aro, 'aro');
-        const aroRoda = normalizarSpec(roda?.aro ?? roda?.specs?.aro, 'aro');
-        if (quadro && roda && quadro.id !== roda.id) {
-            const aviso = `A roda selecionada (aro ${roda.aro}) não é compatível com o quadro (aro ${quadro.aro}).`;
-            comparar(quadro, roda, 'aro', aroQuadro, aroRoda, aviso);
-        }
+        pecasSelecionadas.filter(p => pecaAtendeCategoria(p, 'quadro') || p.subcategoria === 'quadro-garfo').forEach(estrutura => {
+            pecasSelecionadas.filter(p => pecaAtendeCategoria(p, 'rodas')).forEach(roda => {
+                comparar(estrutura, roda, 'aro', normalizarSpec(estrutura.specs?.aro ?? estrutura.aro, 'aro'),
+                    normalizarSpec(roda.specs?.aro ?? roda.aro, 'aro'), 'Os aros informados são diferentes.');
+            });
+        });
 
         return {
             status: avisos.length ? 'incompativel' : faltantes.length ? 'dados_insuficientes'
@@ -307,6 +358,7 @@ class ProdutoModel {
             verificadas,
             pendentes: faltantes.length,
             faltantes,
+            divergencias,
             avisos: [...new Set(avisos)]
         };
     }

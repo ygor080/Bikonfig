@@ -65,7 +65,7 @@ test('regras e verificação adicional de aro usam a mesma normalização, sem m
         vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../models/produtoModel.js'), 'utf8'), contexto);
         const pecas = [
             { id: 'q', nome: 'Quadro', categoria: 'quadro', aro: 'ARO 27,5', specs: { aro: 'ARO 27,5' } },
-            { id: 'r', nome: 'Roda', categoria: 'rodas', aro: '27.5"', specs: { aro: '27.5"' } }
+            { id: 'r', nome: 'Roda', categoria: 'rodas', posicao: 'traseira', aro: '27.5"', specs: { aro: '27.5"' } }
         ];
         const original = JSON.stringify(pecas);
         const r = await contexto.module.exports.avaliarCompatibilidade(pecas);

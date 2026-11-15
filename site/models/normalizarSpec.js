@@ -52,6 +52,10 @@ function normalizarSpec(valor, campo) {
     const texto = textoBase(valor);
     if (texto === null) return null;
     if (campo === 'aro') return normalizarAro(texto);
+    if (campo === 'numero_coroas') {
+        const medida = texto.match(/^(\d+)\s*(?:coroas?)?$/);
+        return medida ? numero(medida[1]) : null;
+    }
     if (campo === 'velocidades') {
         const medida = texto.match(/^(\d+)\s*(?:v|vel\.?|velocidades?|speed|speeds)?$/);
         return medida ? numero(medida[1]) : null;

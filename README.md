@@ -117,6 +117,36 @@ novas regras.
 
 ## Front-end
 
+### Revisão das regras de compatibilidade
+
+O orçamento recebe `itens: [{ id, posicao }]`, mantendo também o suporte
+ao campo legado `ids`. Produtos e preços são sempre consultados no banco.
+As aplicações dianteira e traseira do mesmo produto são preservadas na
+avaliação. Categorias que já indicam o lado têm precedência sobre a posição
+enviada. Em comparações de aro, eixo e freio, lados diferentes não são
+comparados; quando uma categoria genérica exige posição e ela não foi
+informada, o relatório indica dados insuficientes.
+
+Regras para `rodas`, `quadro` e `freios` não se estendem automaticamente
+a todos os acessórios e componentes filhos. As rodas completas são
+comparadas com a estrutura correspondente: dianteira com garfo, traseira
+com quadro. Cada par de aplicações e atributo é comparado uma única vez,
+mesmo com regras sobrepostas. Divergências informam peças, posições,
+atributo e valores; o relatório também inclui `divergencias` estruturadas.
+
+O schema para novas bases usa `numero_coroas` entre câmbio dianteiro e
+pedivela, e `padrao_freehub` entre cubo traseiro e cassete. A antiga regra
+de igualdade de velocidades entre coroa avulsa e câmbio dianteiro foi
+removida. O motor aplica essas mesmas correções às regras antigas lidas
+do banco, sem exigir alteração imediata da base existente. A ausência
+dos novos atributos é sinalizada; os valores não são deduzidos de
+`velocidades`. Nenhuma base de produção foi alterada nesta revisão.
+
+Referência de domínio para o encaixe cubo/cassete:
+[SHIMANO: FREEHUB and cassette spline compatibility](https://productinfo.shimano.com/en/compatibility/C-731).
+As verificações implementadas continuam parciais e não substituem as
+tabelas de compatibilidade dos fabricantes.
+
 ### Padronização das especificações na comparação
 
 O site normaliza os valores em `site/models/normalizarSpec.js`, sem alterar

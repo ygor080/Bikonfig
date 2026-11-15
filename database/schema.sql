@@ -123,7 +123,7 @@ INSERT INTO compatibility_rules (category_a, category_b, spec_key, description) 
         'O trocador (manete) traseiro precisa ter o mesmo número de velocidades do cassete.'),
     ('cambio-traseiro-desviador', 'cambio-traseiro-trocador', 'velocidades',
         'O desviador e o trocador traseiros precisam ser do mesmo número de velocidades.'),
-    ('cambio-dianteiro-desviador', 'pedivela', 'velocidades',
+    ('cambio-dianteiro-desviador', 'pedivela', 'numero_coroas',
         'O câmbio dianteiro precisa ser compatível com o número de coroas do pedivela.'),
     ('rodas', 'quadro', 'aro', 'O aro da roda precisa bater com o aro suportado pelo quadro.'),
     ('rodas', 'pneus', 'aro', 'O aro do pneu precisa bater com o aro da roda.'),
@@ -216,9 +216,7 @@ INSERT INTO compatibility_rules (category_a, category_b, spec_key, description) 
     ('freios-pastilha', 'freios-traseiro', 'padrao_freio',
         'A pastilha precisa ser compatível com o padrão do freio traseiro (disco ou v-brake).'),
     ('freios-disco', 'rodas', 'padrao_freio',
-        'O disco de freio só se aplica a rodas com padrão de freio a disco.'),
-    ('pedivela-coroa', 'cambio-dianteiro-desviador', 'velocidades',
-        'A coroa precisa ser compatível com o número de velocidades do câmbio dianteiro.')
+        'O disco de freio só se aplica a rodas com padrão de freio a disco.')
 ON CONFLICT (category_a, category_b, spec_key) DO NOTHING;
 
 INSERT INTO categories (slug, name, parent_id)
@@ -265,8 +263,8 @@ SELECT 'rodas-cubo-traseiro', 'Cubo Traseiro', id FROM categories WHERE slug = '
 ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO compatibility_rules (category_a, category_b, spec_key, description) VALUES
-    ('rodas-cubo-traseiro', 'cassete', 'velocidades',
-        'O cubo traseiro precisa ter o corpo de catraca compatível com o número de velocidades do cassete.')
+    ('rodas-cubo-traseiro', 'cassete', 'padrao_freehub',
+        'O padrão de encaixe do cassete precisa corresponder ao corpo do cubo traseiro.')
 ON CONFLICT (category_a, category_b, spec_key) DO NOTHING;
 
 INSERT INTO categories (slug, name, parent_id) VALUES

@@ -18,7 +18,8 @@ function preparar() {
         return elementos[id] ||= {
             innerHTML: '', textContent: '', children: [], disabled: false, listeners: {},
             querySelectorAll: () => [], querySelector: () => null,
-            addEventListener(evento, acao) { this.listeners[evento] = acao; }
+            addEventListener(evento, acao) { this.listeners[evento] = acao; },
+            appendChild(filho) { this.children.push(filho); }
         };
     }
     const requisicoes = [];
@@ -26,7 +27,8 @@ function preparar() {
     const contexto = {
         document: {
             addEventListener: (_, acao) => { iniciar = acao; },
-            getElementById: id => id === 'configCompatibilidade' ? null : elemento(id), querySelectorAll: () => []
+            getElementById: id => id === 'configCompatibilidade' ? null : elemento(id), querySelectorAll: () => [],
+            createElement: () => elemento(Symbol())
         },
         window: { location: { search: '' } }, URLSearchParams,
         console: { error() {} },
@@ -61,8 +63,8 @@ test('resposta antiga não sobrescreve total, avisos ou resumo da seleção mais
     r.responder(0, 100, ['Aviso antigo']);
     await primeira;
     assert.equal(r.elementos.orcamentoTotal.textContent, 'R$ 200.00');
-    assert.match(r.elementos.configAvisos.innerHTML, /Aviso atual/);
-    assert.doesNotMatch(r.elementos.configAvisos.innerHTML, /Aviso antigo/);
+    assert.ok(r.elementos.configAvisos.children.some(filho => /Aviso atual/.test(filho.textContent)));
+    assert.ok(!r.elementos.configAvisos.children.some(filho => /Aviso antigo/.test(filho.textContent)));
     assert.match(r.elementos.orcamentoLista.innerHTML, /atual/);
 });
 

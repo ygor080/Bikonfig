@@ -15,7 +15,7 @@ function preparar(regras = [regra]) {
 function pecas(aroA, aroB) {
     return [
         { id: 'q', nome: 'Quadro', subcategoria: 'quadro', categoria: 'quadro', specs: { aro: aroA }, aro: aroA },
-        { id: 'p', nome: 'Pneu', subcategoria: 'pneus', categoria: 'pneus', specs: { aro: aroB }, aro: aroB }
+        { id: 'p', nome: 'Pneu', subcategoria: 'pneus', categoria: 'pneus', posicao: 'traseira', specs: { aro: aroB }, aro: aroB }
     ];
 }
 
@@ -51,8 +51,8 @@ test('divergência conhecida continua sendo incompatibilidade', async () => {
     const r = await model.avaliarCompatibilidade(pecas('29', '26'));
     assert.equal(r.status, 'incompativel');
     assert.equal(r.verificadas, 1);
-    assert.equal(r.avisos[0], 'Aros divergentes');
-    assert.equal((await model.verificarCompatibilidade(pecas('29', '26')))[0], 'Aros divergentes');
+    assert.match(r.avisos[0], /Aros divergentes/);
+    assert.match((await model.verificarCompatibilidade(pecas('29', '26')))[0], /Aros divergentes/);
 });
 
 test('incompatibilidade e dados insuficientes podem coexistir no mesmo relatório', async () => {
@@ -77,7 +77,7 @@ test('seleção vazia, peça isolada ou pares sem regra ficam como não verifica
 test('regra de aro e verificação adicional não duplicam a comparação do mesmo par', async () => {
     const selecao = pecas('29', undefined);
     selecao[1].categoria = 'rodas';
-    selecao[1].subcategoria = 'rodas-dianteira';
+    selecao[1].subcategoria = 'rodas-traseira';
     const r = await preparar([{ ...regra, category_b: 'rodas' }]).avaliarCompatibilidade(selecao);
     assert.equal(r.pendentes, 1);
     assert.equal(r.faltantes.length, 1);
@@ -90,7 +90,7 @@ test('orçamento entrega relatório ao cliente e mantém avisos separados de dad
         nome === '../models/produtoModel' ? model : {} };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/catalogoController.js'), 'utf8'), contexto);
     let resultado;
-    await contexto.module.exports.calcularOrcamento({ body: { ids: ['q', 'p'] } }, {
+    await contexto.module.exports.calcularOrcamento({ body: { itens: [{ id: 'q' }, { id: 'p', posicao: 'traseira' }] } }, {
         json: dados => { resultado = dados; }, status: () => { throw new Error('Falha no orçamento'); }
     });
     assert.equal(resultado.total, 200);

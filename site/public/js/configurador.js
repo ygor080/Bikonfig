@@ -307,8 +307,9 @@ document.addEventListener('DOMContentLoaded', function () {
         (relatorio?.faltantes || []).forEach(function (falta) {
             const detalhe = document.createElement('p');
             detalhe.className = 'config-aviso-compat';
-            detalhe.textContent = 'Não foi possível comparar ' + falta.pecas.map(p => p.nome).join(' e ')
-                + ': falta a especificação "' + falta.campo + '" em ' + falta.ausentes.map(p => p.nome).join(' e ') + '.';
+            const nomeComPosicao = p => p.nome + (p.posicao ? ' (' + p.posicao + ')' : '');
+            detalhe.textContent = 'Não foi possível comparar ' + falta.pecas.map(nomeComPosicao).join(' e ')
+                + ': falta a especificação "' + falta.campo + '" em ' + falta.ausentes.map(nomeComPosicao).join(' e ') + '.';
             compatibilidadeEl.appendChild(detalhe);
         });
     }
@@ -333,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
         const ids = entradas.map(p => p.id);
+        const itens = entradas.map(p => ({ id: p.id, posicao: p.posicao || null }));
         orcamentoTotalEl.textContent = 'Calculando...';
         avisosEl.textContent = '';
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = true;
@@ -341,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const resposta = await fetch('/catalogo/api/orcamento', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids })
+                body: JSON.stringify({ ids, itens })
             });
             if (versao !== versaoOrcamento) return;
             if (!resposta.ok) throw new Error('Falha ao consultar orçamento.');
@@ -363,9 +365,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            avisosEl.innerHTML = (dados.avisos || []).map(function (aviso) {
-                return '<p class="config-aviso-compat">⚠ ' + aviso + '</p>';
-            }).join('');
+            avisosEl.textContent = '';
+            (dados.avisos || []).forEach(function (aviso) {
+                const mensagem = document.createElement('p');
+                mensagem.className = 'config-aviso-compat';
+                mensagem.textContent = '⚠ ' + aviso;
+                avisosEl.appendChild(mensagem);
+            });
             mostrarCompatibilidade(dados.compatibilidade);
         } catch (erro) {
             if (versao !== versaoOrcamento) return;
