@@ -216,19 +216,22 @@ const catalogoController = {
             }
 
             const itensSalvos = await ConfiguracaoModel.listarItens(configuracao.id);
-            const posicaoPorId = new Map(itensSalvos.map(item => [item.id, item.posicao]));
-
             const produtos = await ProdutoModel.buscarVariosPorId(itensSalvos.map(item => item.id));
+            const produtoPorId = new Map(produtos.map(produto => [produto.id, produto]));
 
-            const itens = produtos.map(produto => ({
-                id: produto.id,
-                nome: produto.nome,
-                preco: produto.preco,
-                imagem: produto.imagem,
-                aro: produto.aro,
-                subcategoria: produto.subcategoria,
-                posicao: posicaoPorId.get(produto.id) || null
-            }));
+            // Um produto pode ocupar mais de uma posição na mesma montagem.
+            const itens = itensSalvos.filter(item => produtoPorId.has(item.id)).map(item => {
+                const produto = produtoPorId.get(item.id);
+                return {
+                    id: produto.id,
+                    nome: produto.nome,
+                    preco: produto.preco,
+                    imagem: produto.imagem,
+                    aro: produto.aro,
+                    subcategoria: produto.subcategoria,
+                    posicao: item.posicao || null
+                };
+            });
 
             res.json({ id: configuracao.id, nome: configuracao.nome, itens: itens });
         } catch (erro) {
