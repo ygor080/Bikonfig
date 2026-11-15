@@ -114,9 +114,9 @@
                                 <span class="sem-estoque">Sem estoque</span>
                             <% } %>
                         </div>
-                        <button class="btn-adicionar" onclick="window.location.href='/catalogo/configurador'">
+                        <a class="btn-adicionar" href="/catalogo/configurador?produto=<%= encodeURIComponent(produtos[i].id) %>&amp;subcategoria=<%= encodeURIComponent(produtos[i].subcategoria || '') %>">
                             Configurar com essa peça
-                        </button>
+                        </a>
                     </div>
                 <% } %>
             </div>

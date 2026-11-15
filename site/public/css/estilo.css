@@ -609,6 +609,9 @@ input:focus-visible {
 }
 
 .btn-adicionar {
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
     font-family: var(--fonte-display);
     background: var(--laranja);
     color: white;

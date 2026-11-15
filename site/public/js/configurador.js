@@ -461,9 +461,45 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    const configuracaoDaUrl = new URLSearchParams(window.location.search).get('config');
+    async function carregarPecaDoCatalogo(id, subcategoria) {
+        try {
+            const botaoCategoria = Array.from(configMenu.querySelectorAll('.config-subitem-btn'))
+                .find(btn => btn.dataset.subcategoria === subcategoria);
+            if (!botaoCategoria) throw new Error('Categoria não encontrada.');
+
+            const resposta = await fetch('/catalogo/api/pecas/' + encodeURIComponent(subcategoria));
+            if (!resposta.ok) throw new Error('Falha ao consultar a peça.');
+            const pecas = await resposta.json();
+            const peca = pecas.find(item => item.id === id);
+            if (!peca) throw new Error('Peça não disponível.');
+
+            const posicao = PECAS_DUAS_POSICOES.includes(subcategoria) ? 'dianteira' : null;
+            if (posicao) posicaoAtivaPorSub[subcategoria] = posicao;
+            if (CATEGORIAS_MULTIPLAS.includes(subcategoria)) {
+                alternarPecaMultipla(subcategoria, peca);
+            } else {
+                selecionarPeca(posicao ? subcategoria + '::' + posicao : subcategoria, subcategoria, peca, posicao);
+            }
+
+            configMenu.querySelectorAll('.config-subitem-btn').forEach(btn => btn.classList.remove('ativo'));
+            botaoCategoria.classList.add('ativo');
+            botaoCategoria.closest('.config-grupo').classList.add('aberto');
+            renderizarListaPecas(pecas, subcategoria, botaoCategoria.dataset.nome);
+            if (posicao) {
+                Bikonfig.toast('Peça selecionada na posição dianteira. Você pode escolher a peça traseira na mesma categoria.', { tipo: 'sucesso' });
+            }
+        } catch (erro) {
+            console.error('Erro ao selecionar peça do catálogo', erro);
+            Bikonfig.toast('Não foi possível selecionar essa peça. Ela pode não estar mais disponível; escolha outra no configurador.', { tipo: 'erro' });
+        }
+    }
+
+    const parametrosDaUrl = new URLSearchParams(window.location.search);
+    const configuracaoDaUrl = parametrosDaUrl.get('config');
     if (configuracaoDaUrl) {
         carregarConfiguracaoSalva(configuracaoDaUrl);
+    } else if (parametrosDaUrl.get('produto')) {
+        carregarPecaDoCatalogo(parametrosDaUrl.get('produto'), parametrosDaUrl.get('subcategoria'));
     }
 
     const primeiroGrupo = configMenu.querySelector('.config-grupo');
