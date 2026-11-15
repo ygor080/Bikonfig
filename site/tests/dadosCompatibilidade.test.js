@@ -7,7 +7,8 @@ const vm = require('node:vm');
 const regra = { category_a: 'quadro', category_b: 'pneus', spec_key: 'aro', description: 'Aros divergentes' };
 function preparar(regras = [regra]) {
     const contexto = { module: { exports: {} }, require: nome => nome === '../config/banco'
-        ? { pool: { query: async () => ({ rows: regras }) } } : require('../config/produtoDisponivel') };
+        ? { pool: { query: async () => ({ rows: regras }) } }
+        : nome === './normalizarSpec' ? require('../models/normalizarSpec') : require('../config/produtoDisponivel') };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../models/produtoModel.js'), 'utf8'), contexto);
     return contexto.module.exports;
 }

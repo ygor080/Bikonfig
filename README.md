@@ -117,6 +117,27 @@ novas regras.
 
 ## Front-end
 
+### Padronização das especificações na comparação
+
+O site normaliza os valores em `site/models/normalizarSpec.js`, sem alterar
+as especificações originais no banco. As regras e a verificação adicional
+de aro utilizam a mesma função:
+
+- `aro`: aceita valores numéricos, prefixo `aro`, vírgula decimal e
+  indicação de polegadas (ex.: `ARO 27,5` e `27.5 polegadas`). Não deduz
+  equivalências entre nomenclaturas como `700c` e `29`.
+- `velocidades`: aceita número inteiro e sufixos como `v`, `velocidades`
+  e `speed`. Relações e listas como `2x11` e `10/11v` exigem revisão.
+- `diametro_eixo`: padroniza espaços, separador `x`/`×`, milímetros e
+  centímetros. Preserva espaçamento, diâmetro e marcadores como `boost`,
+  `superboost`, `qr` e `thru-axle`. Não deduz medidas ou unidades ausentes.
+- `padrao_freio`: reconhece grafias como `freio a disco`, `disc brake`,
+  `V brake` e `V-Brake`, preservando qualificadores adicionais.
+
+Valores vazios, tipos inválidos ou medidas não reconhecidas nos campos
+numéricos geram dados insuficientes. A normalização não amplia as regras
+técnicas nem certifica a compatibilidade completa da montagem.
+
 `site/public/js/app.js` expõe `window.Bikonfig` com `toast()`,
 `confirmDialog()` e `promptDialog()` — usados no lugar de
 `alert()`/`confirm()`/`prompt()` nativos, pra manter o visual consistente

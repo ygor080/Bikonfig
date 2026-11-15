@@ -49,6 +49,7 @@ function preparar() {
 test('todas as consultas públicas de produto compartilham o mesmo filtro de disponibilidade', async () => {
     const consultas = [];
     const model = carregar('../models/produtoModel.js', {
+        './normalizarSpec': require('../models/normalizarSpec'),
         '../config/banco': { pool: { query: async sql => { consultas.push(sql); return { rows: [] }; } } },
         '../config/produtoDisponivel': filtro
     });

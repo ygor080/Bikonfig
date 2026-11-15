@@ -118,14 +118,7 @@ function normalizarProduto(produto) {
     return { ...produto, imagem, preco: Number(produto.preco), aro: produto.aro === null ? null : String(produto.aro).trim() };
 }
 
-function medidaDoAro(aro) {
-    const medida = Number.parseFloat(aro);
-    return Number.isFinite(medida) ? medida : null;
-}
-
-function normalizarSpec(valor) {
-    return valor === undefined || valor === null ? null : String(valor).trim().toLowerCase() || null;
-}
+const normalizarSpec = require('./normalizarSpec');
 
 const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
 
@@ -292,8 +285,8 @@ class ProdutoModel {
                 pecasB.forEach(pecaB => {
                     if (pecaA.id === pecaB.id) return;
 
-                    const valorA = normalizarSpec(pecaA.specs?.[regra.spec_key]);
-                    const valorB = normalizarSpec(pecaB.specs?.[regra.spec_key]);
+                    const valorA = normalizarSpec(pecaA.specs?.[regra.spec_key], regra.spec_key);
+                    const valorB = normalizarSpec(pecaB.specs?.[regra.spec_key], regra.spec_key);
                     comparar(pecaA, pecaB, regra.spec_key, valorA, valorB, regra.description);
                 });
             });
@@ -301,8 +294,8 @@ class ProdutoModel {
 
         const quadro = pecasSelecionadas.find(p => p.subcategoria === 'quadro' || p.categoria === 'quadro');
         const roda = pecasSelecionadas.find(p => p.categoria === 'rodas');
-        const aroQuadro = medidaDoAro(quadro?.aro);
-        const aroRoda = medidaDoAro(roda?.aro);
+        const aroQuadro = normalizarSpec(quadro?.aro ?? quadro?.specs?.aro, 'aro');
+        const aroRoda = normalizarSpec(roda?.aro ?? roda?.specs?.aro, 'aro');
         if (quadro && roda && quadro.id !== roda.id) {
             const aviso = `A roda selecionada (aro ${roda.aro}) não é compatível com o quadro (aro ${quadro.aro}).`;
             comparar(quadro, roda, 'aro', aroQuadro, aroRoda, aviso);
