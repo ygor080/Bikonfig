@@ -102,7 +102,7 @@
                 <% for (let i = 0; i < produtos.length; i++) { %>
                     <div class="produto-card">
                         <div class="produto-imagem">
-                            <img src="<%= produtos[i].imagem || '/img/pecas/quadro.svg' %>" alt="<%= produtos[i].nome %>">
+                            <img src="<%= produtos[i].imagem || produtos[i].imagemFallback %>" data-imagem-fallback="<%= produtos[i].imagemFallback %>" alt="<%= produtos[i].nome %>">
                         </div>
                         <h3><%= produtos[i].nome %></h3>
                         <p class="preco">R$ <%= produtos[i].preco.toFixed(2) %></p>

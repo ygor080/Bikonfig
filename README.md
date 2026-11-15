@@ -94,13 +94,12 @@ montagem, uma linha por peça). A lógica vive em
 
 ## Produtos sem preço ou imagem
 
-Quando a página original de um produto sai do ar, o scraper pode acabar
-salvando o produto sem `current_price`/`image_url`. Esses produtos ficam
-ocultos e impossíveis de selecionar em todo lugar visível ao usuário
-(catálogo, configurador, orçamento e PDF) — o filtro está em
-`site/models/produtoModel.js`. A tela de revisão do admin
-(`/admin/revisao`) não usa esse filtro, então é lá que dá pra encontrar
-e excluir esses produtos de vez.
+Produtos sem preço válido ficam fora do catálogo e da seleção. Uma imagem
+ausente ou que falha ao carregar é substituída por um ícone local, sem
+impedir a seleção de uma oferta com preço e disponibilidade elegíveis.
+Os filtros estão em `site/models/produtoModel.js` e nos critérios
+compartilhados de publicação e seleção. A revisão administrativa continua
+permitindo inspecionar os produtos pendentes fora desses filtros.
 
 ## Usuários
 
@@ -119,6 +118,22 @@ motivo. Ver `api/README.md` para detalhes e exemplos de como adicionar
 novas regras.
 
 ## Front-end
+
+### Imagens externas com falha (etapa 11)
+
+Catálogo, cartões e resumo do configurador e revisão administrativa usam
+um ícone local da categoria se a foto externa falhar. O modelo fornece
+`imagemFallback` com o ícone apropriado; imagens ausentes já utilizam
+esse ícone desde a primeira renderização. Categorias desconhecidas usam
+o ícone padrão.
+
+O tratamento compartilhado em `site/public/js/app.js` captura erros de
+imagens marcadas com `data-imagem-fallback`, inclusive imagens inseridas
+dinamicamente. Também verifica falhas ocorridas antes do carregamento do
+script. Uma imagem válida é preservada. Há uma única tentativa de
+substituição por elemento; se o ícone local também falhar, permanece um
+texto alternativo sem novas tentativas em ciclo. Não há migração de banco
+para esta etapa.
 
 ### Disponibilidade de estoque (etapa 10)
 

@@ -1,4 +1,30 @@
 (function () {
+    const imagensSubstituidas = new WeakSet();
+    function substituirImagem(img) {
+        if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-imagem-fallback')) return;
+        const informado = img.getAttribute('data-imagem-fallback');
+        const padrao = /^\/img\/pecas\/[a-z0-9-]+\.svg$/.test(informado || '') ? informado : '/img/pecas/quadro.svg';
+        // Uma única tentativa por elemento; se o ícone local falhar, manter texto alternativo.
+        if (imagensSubstituidas.has(img) || img.getAttribute('src') === padrao) {
+            imagensSubstituidas.add(img);
+            img.removeAttribute('srcset');
+            img.removeAttribute('src');
+            if (!img.alt.includes('imagem indisponível')) img.alt = (img.alt ? img.alt + ' — ' : '') + 'imagem indisponível';
+            return;
+        }
+        imagensSubstituidas.add(img);
+        img.removeAttribute('srcset');
+        img.setAttribute('src', padrao);
+    }
+    // Captura também erros de imagens inseridas depois, como no configurador.
+    document.addEventListener('error', function (evento) { substituirImagem(evento.target); }, true);
+    document.addEventListener('DOMContentLoaded', function () {
+        // Algumas imagens já podem ter falhado antes do carregamento deste script.
+        document.querySelectorAll('img[data-imagem-fallback]').forEach(function (img) {
+            if (img.complete && img.naturalWidth === 0) substituirImagem(img);
+        });
+    });
+
     function montarContainerToast() {
         let container = document.querySelector('.bk-toast-container');
         if (!container) {

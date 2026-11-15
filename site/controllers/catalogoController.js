@@ -265,6 +265,7 @@ const catalogoController = {
                     nome: produto.nome,
                     preco: produto.preco,
                     imagem: produto.imagem,
+                    imagemFallback: produto.imagemFallback,
                     aro: produto.aro,
                     subcategoria: produto.subcategoria,
                     posicao: item.posicao || null

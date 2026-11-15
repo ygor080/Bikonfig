@@ -54,7 +54,7 @@
                 <% produtos.forEach(function (p) { %>
                     <div class="admin-card">
                         <div class="admin-card__topo">
-                            <img class="admin-card__imagem" src="<%= p.imagem || '/img/pecas/quadro.svg' %>" alt="">
+                            <img class="admin-card__imagem" src="<%= p.imagem || p.imagemFallback %>" data-imagem-fallback="<%= p.imagemFallback %>" alt="<%= p.nome %>">
                             <div class="admin-card__info">
                                 <a href="<%= p.product_url %>" target="_blank" rel="noopener noreferrer" class="admin-card__nome"><%= p.nome %></a>
                                 <p class="admin-card__meta">

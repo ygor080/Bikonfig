@@ -37,7 +37,7 @@ test('reabre o mesmo pneu nas duas posições e mantém o orçamento das duas un
     const controller = controlador([
         { id: 'pneu', posicao: 'dianteira' },
         { id: 'pneu', posicao: 'traseira' }
-    ], [{ id: 'pneu', nome: 'Pneu', preco: 100, subcategoria: 'pneus' }]);
+    ], [{ id: 'pneu', nome: 'Pneu', preco: 100, subcategoria: 'pneus', imagemFallback: '/img/pecas/pneu.svg' }]);
     const montagem = await chamar(controller.carregarConfiguracao);
     assert.deepEqual(montagem.itens.map(p => [p.id, p.posicao]), [
         ['pneu', 'dianteira'], ['pneu', 'traseira']
@@ -45,6 +45,7 @@ test('reabre o mesmo pneu nas duas posições e mantém o orçamento das duas un
     const orcamento = await chamar(controller.calcularOrcamento, { ids: montagem.itens.map(p => p.id) });
     assert.equal(orcamento.pecas.length, 2);
     assert.equal(orcamento.total, 200);
+    montagem.itens.forEach(item => assert.equal(item.imagemFallback, '/img/pecas/pneu.svg'));
 });
 
 test('preserva posições e ordem dos itens mesmo quando a consulta retorna produtos em outra ordem', async () => {

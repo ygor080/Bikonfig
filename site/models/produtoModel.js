@@ -112,13 +112,17 @@ const ICONE_PADRAO = {
     'fixacao-roda-traseiro': '/img/pecas/eixo.svg'
 };
 
-function normalizarProduto(produto) {
-    if (!produto) return null;
-    const imagem = produto.imagem
-        || ICONE_PADRAO[produto.subcategoria]
+function imagemPadrao(produto) {
+    return ICONE_PADRAO[produto.subcategoria || produto.categoria_atual]
         || ICONE_PADRAO[produto.categoria]
         || '/img/pecas/quadro.svg';
-    return { ...produto, imagem, preco: Number(produto.preco), aro: produto.aro === null ? null : String(produto.aro).trim() };
+}
+
+function normalizarProduto(produto) {
+    if (!produto) return null;
+    const imagemFallback = imagemPadrao(produto);
+    const imagem = produto.imagem || imagemFallback;
+    return { ...produto, imagem, imagemFallback, preco: Number(produto.preco), aro: produto.aro == null ? null : String(produto.aro).trim() };
 }
 
 const normalizarSpec = require('./normalizarSpec');
@@ -211,7 +215,7 @@ class ProdutoModel {
             WHERE p.needs_review = true
             ORDER BY p.ai_confidence ASC NULLS FIRST, p.created_at DESC
         `);
-        return rows.map(p => ({ ...p, preco: Number(p.preco) }));
+        return rows.map(p => ({ ...p, imagemFallback: imagemPadrao(p), preco: Number(p.preco) }));
     }
 
     static async listarCategoriasFlat() {

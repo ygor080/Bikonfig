@@ -167,10 +167,11 @@ document.addEventListener('DOMContentLoaded', function () {
         renderizarGrid(pecas, subcategoria, nomeSub, posicaoAtivaPorSub[subcategoria], gridWrapper);
     }
 
+    const textoSeguro = valor => String(valor).replace(/[&<>"']/g, caractere => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[caractere]);
+
     function renderizarGrid(pecas, subcategoria, nomeSub, posicao, alvo) {
-        const textoSeguro = valor => String(valor).replace(/[&<>"']/g, caractere => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[caractere]);
         const multipla = CATEGORIAS_MULTIPLAS.includes(subcategoria);
         const chaveAtual = posicao ? (subcategoria + '::' + posicao) : subcategoria;
         const selecionadaAtual = selecionadas[chaveAtual];
@@ -191,7 +192,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 return (
                     '<div class="produto-card config-produto-card' + (ativo ? ' selecionado' : '') + '" data-id="' + peca.id + '">' +
                         (peca.opcional ? '<span class="tag-opcional">opcional</span>' : '') +
-                        '<div class="produto-imagem"><img src="' + (peca.imagem || '/img/pecas/quadro.svg') + '" alt="' + peca.nome + '"></div>' +
+                        '<div class="produto-imagem"><img src="' + textoSeguro(peca.imagem || peca.imagemFallback || '/img/pecas/quadro.svg')
+                            + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
+                            + '" alt="' + textoSeguro(peca.nome) + '"></div>' +
                         '<h3>' + peca.nome + '</h3>' +
                         '<p class="preco">R$ ' + peca.preco.toFixed(2) + '</p>' +
                         '<p class="fabricante">Fabricante: ' + textoSeguro(peca.fabricante || 'Não informado') + '</p>' +
@@ -233,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function () {
             nome: peca.nome,
             preco: peca.preco,
             imagem: peca.imagem,
+            imagemFallback: peca.imagemFallback,
             aro: peca.aro,
             subcategoria: subcategoria,
             posicao: posicao || null
@@ -254,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 nome: peca.nome,
                 preco: peca.preco,
                 imagem: peca.imagem,
+                imagemFallback: peca.imagemFallback,
                 aro: peca.aro,
                 subcategoria: subcategoria,
                 posicao: null
@@ -374,7 +379,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         orcamentoListaEl.innerHTML = entradas.map(function (peca) {
             const rotulo = peca.posicao === 'dianteira' ? ' (dianteira)' : peca.posicao === 'traseira' ? ' (traseira)' : '';
-            return '<li><img class="orcamento-icone" src="' + (peca.imagem || '/img/pecas/quadro.svg') + '" alt=""><span>' + peca.nome + rotulo + '</span><span>R$ ' + peca.preco.toFixed(2) + '</span></li>';
+            return '<li><img class="orcamento-icone" src="' + textoSeguro(peca.imagem || peca.imagemFallback || '/img/pecas/quadro.svg')
+                + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
+                + '" alt=""><span>' + peca.nome + rotulo + '</span><span>R$ ' + peca.preco.toFixed(2) + '</span></li>';
         }).join('');
 
         const ids = entradas.map(p => p.id);
@@ -575,6 +582,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     nome: peca.nome,
                     preco: peca.preco,
                     imagem: peca.imagem,
+                    imagemFallback: peca.imagemFallback,
                     aro: peca.aro,
                     subcategoria: peca.subcategoria,
                     posicao: peca.posicao || null
