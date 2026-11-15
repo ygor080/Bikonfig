@@ -330,6 +330,8 @@ CREATE TABLE IF NOT EXISTS configuracoes (
 
 CREATE INDEX IF NOT EXISTS idx_configuracoes_usuario ON configuracoes(usuario_id, criado_em DESC);
 
+ALTER TABLE configuracoes ADD COLUMN IF NOT EXISTS tipo_montagem TEXT NOT NULL DEFAULT 'com-marchas';
+
 CREATE TABLE IF NOT EXISTS configuracao_itens (
     id                BIGSERIAL PRIMARY KEY,
     configuracao_id   UUID NOT NULL REFERENCES configuracoes(id) ON DELETE CASCADE,

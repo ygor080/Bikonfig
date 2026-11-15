@@ -87,7 +87,8 @@ test('orçamento entrega relatório ao cliente e mantém avisos separados de dad
     const model = preparar();
     model.buscarVariosPorId = async () => pecas('29', undefined).map(p => ({ ...p, preco: 100 }));
     const contexto = { module: { exports: {} }, console, require: nome =>
-        nome === '../models/produtoModel' ? model : {} };
+        nome === '../models/produtoModel' ? model
+            : nome === '../models/completudeMontagem' ? require('../models/completudeMontagem') : {} };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/catalogoController.js'), 'utf8'), contexto);
     let resultado;
     await contexto.module.exports.calcularOrcamento({ body: { itens: [{ id: 'q' }, { id: 'p', posicao: 'traseira' }] } }, {

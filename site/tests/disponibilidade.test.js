@@ -7,6 +7,7 @@ const filtro = require('../config/produtoDisponivel');
 
 function carregar(arquivo, dependencias) {
     const contexto = { module: { exports: {} }, require: nome => {
+        if (nome === '../models/completudeMontagem') return require('../models/completudeMontagem');
         assert.ok(nome in dependencias, `Dependência não simulada: ${nome}`);
         return dependencias[nome];
     }, console };

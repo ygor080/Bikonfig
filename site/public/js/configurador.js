@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnSalvarConfig = document.getElementById('btnSalvarConfig');
     const btnBaixarPdf = document.getElementById('btnBaixarPdf');
     const btnAtualizarOrcamento = document.getElementById('btnAtualizarOrcamento');
+    const tipoMontagemEl = document.getElementById('tipoMontagem');
+    const completudeEl = document.getElementById('configCompletude');
+    const tipoMontagemAtual = () => tipoMontagemEl?.value || 'com-marchas';
 
     const MAPA_SVG = {
         'quadro': 'parte-quadro',
@@ -290,6 +293,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let versaoOrcamento = 0;
 
+    function mostrarCompletude(relatorio) {
+        if (!completudeEl) return;
+        completudeEl.textContent = '';
+        if (!relatorio) {
+            completudeEl.textContent = 'Não foi possível conferir os componentes essenciais. Atualize o orçamento para tentar novamente.';
+            return;
+        }
+        const resumo = document.createElement('p');
+        resumo.textContent = relatorio.selecionados + ' de ' + relatorio.total + ' requisitos de componentes selecionados. '
+            + (relatorio.status === 'itens_selecionados' ? 'Itens principais previstos selecionados.'
+                : relatorio.status === 'confirmacao_necessaria' ? 'Há itens que precisam de confirmação.' : 'A montagem ainda está incompleta.');
+        completudeEl.appendChild(resumo);
+        const lista = document.createElement('ul');
+        (relatorio.faltantes || []).forEach(function (item) {
+            const linha = document.createElement('li');
+            linha.textContent = 'Falta: ' + item.nome;
+            lista.appendChild(linha);
+        });
+        (relatorio.confirmar || []).forEach(function (item) {
+            const linha = document.createElement('li');
+            linha.textContent = 'Confirmar: ' + item.nome;
+            lista.appendChild(linha);
+        });
+        completudeEl.appendChild(lista);
+        const observacao = document.createElement('p');
+        observacao.textContent = relatorio.observacao;
+        completudeEl.appendChild(observacao);
+    }
+
     function mostrarCompatibilidade(relatorio) {
         if (!compatibilidadeEl) return;
         compatibilidadeEl.textContent = '';
@@ -322,6 +354,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = false;
 
         if (entradas.length === 0) {
+            if (completudeEl) completudeEl.textContent = 'Nenhuma peça selecionada. Escolha os componentes para conferir a lista de itens essenciais deste tipo de montagem.';
             orcamentoListaEl.innerHTML = '<li class="config-orcamento-vazio">Nenhuma peça selecionada ainda.</li>';
             orcamentoTotalEl.textContent = 'R$ 0,00';
             avisosEl.innerHTML = '';
@@ -336,6 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const ids = entradas.map(p => p.id);
         const itens = entradas.map(p => ({ id: p.id, posicao: p.posicao || null }));
         orcamentoTotalEl.textContent = 'Calculando...';
+        if (completudeEl) completudeEl.textContent = 'Conferindo componentes essenciais...';
         avisosEl.textContent = '';
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = true;
 
@@ -343,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const resposta = await fetch('/catalogo/api/orcamento', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids, itens })
+                body: JSON.stringify({ ids, itens, tipoMontagem: tipoMontagemAtual() })
             });
             if (versao !== versaoOrcamento) return;
             if (!resposta.ok) throw new Error('Falha ao consultar orçamento.');
@@ -373,11 +407,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 avisosEl.appendChild(mensagem);
             });
             mostrarCompatibilidade(dados.compatibilidade);
+            mostrarCompletude(dados.completude);
         } catch (erro) {
             if (versao !== versaoOrcamento) return;
             console.error('Erro ao atualizar orcamento', erro);
             orcamentoTotalEl.textContent = 'Indisponível';
             avisosEl.textContent = 'Não foi possível atualizar o orçamento. Clique em "Atualizar orçamento" para tentar novamente.';
+            if (completudeEl) completudeEl.textContent = 'Verificação de componentes essenciais indisponível. Atualize o orçamento para tentar novamente.';
         } finally {
             if (versao === versaoOrcamento && btnAtualizarOrcamento) {
                 btnAtualizarOrcamento.disabled = false;
@@ -386,6 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (btnAtualizarOrcamento) btnAtualizarOrcamento.addEventListener('click', atualizarOrcamento);
+    if (tipoMontagemEl) tipoMontagemEl.addEventListener('change', atualizarOrcamento);
 
     btnLimpar.addEventListener('click', function () {
         Object.keys(selecionadas).forEach(key => delete selecionadas[key]);
@@ -473,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const resposta = await fetch('/catalogo/api/configuracoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome: nome, itens })
+                    body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoMontagemAtual() })
                 });
 
                 if (!resposta.ok) {
@@ -498,6 +535,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!resposta.ok) throw new Error('Configuração não encontrada.');
             const dados = await resposta.json();
 
+            if (tipoMontagemEl) tipoMontagemEl.value = dados.tipoMontagem || 'com-marchas';
             if (indisponiveisEl) {
                 indisponiveisEl.textContent = '';
                 if (dados.indisponiveis?.length) {

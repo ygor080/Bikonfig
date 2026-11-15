@@ -2,14 +2,14 @@ const { pool } = require('../config/banco');
 const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
 
 class ConfiguracaoModel {
-    static async salvar(usuarioId, nome, itens) {
+    static async salvar(usuarioId, nome, itens, tipoMontagem = 'com-marchas') {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
             const { rows } = await client.query(
-                'INSERT INTO configuracoes (usuario_id, nome) VALUES ($1, $2) RETURNING id, nome, criado_em',
-                [usuarioId, nome]
+                'INSERT INTO configuracoes (usuario_id, nome, tipo_montagem) VALUES ($1, $2, $3) RETURNING id, nome, criado_em',
+                [usuarioId, nome, tipoMontagem]
             );
             const configuracao = rows[0];
 
@@ -58,7 +58,7 @@ class ConfiguracaoModel {
 
     static async buscarPorId(id, usuarioId) {
         const { rows } = await pool.query(
-            'SELECT id, nome, criado_em FROM configuracoes WHERE id = $1 AND usuario_id = $2',
+            'SELECT id, nome, criado_em, tipo_montagem FROM configuracoes WHERE id = $1 AND usuario_id = $2',
             [id, usuarioId]
         );
         return rows[0] || null;

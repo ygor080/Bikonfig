@@ -1,6 +1,7 @@
 const ProdutoModel = require('../models/produtoModel');
 const ConfiguracaoModel = require('../models/configuracaoModel');
 const PDFDocument = require('pdfkit');
+const { avaliarCompletude, tipoValido } = require('../models/completudeMontagem');
 
 const catalogoController = {
     exibirCatalogo: async (req, res) => {
@@ -37,6 +38,8 @@ const catalogoController = {
 
     calcularOrcamento: async (req, res) => {
         try {
+            const tipoMontagem = req.body.tipoMontagem ?? 'com-marchas';
+            if (!tipoValido(tipoMontagem)) return res.status(400).json({ erro: 'Tipo de montagem inválido.' });
             const entradas = Array.isArray(req.body.itens) ? req.body.itens
                 : Array.isArray(req.body.ids) ? req.body.ids.map(id => ({ id })) : [];
             if (entradas.some(item => !item || typeof item.id !== 'string'
@@ -47,6 +50,7 @@ const catalogoController = {
 
             if (!Array.isArray(ids) || ids.length === 0) {
                 return res.json({ pecas: [], total: 0, avisos: [], indisponiveis: [],
+                    completude: avaliarCompletude([], tipoMontagem),
                     compatibilidade: { status: 'nao_verificada', verificadas: 0, pendentes: 0, faltantes: [] } });
             }
 
@@ -68,7 +72,8 @@ const catalogoController = {
             const indisponiveis = idsUnicos.filter(id => !porId.has(id));
             if (indisponiveis.length) avisos.push('Há peças indisponíveis na seleção. O total considera somente as peças disponíveis; substitua as demais antes de salvar ou exportar.');
 
-            res.json({ pecas, total, avisos, indisponiveis, compatibilidade });
+            const completude = avaliarCompletude([...porAplicacao.values()], tipoMontagem);
+            res.json({ pecas, total, avisos, indisponiveis, compatibilidade, completude });
         } catch (erro) {
             console.error('Erro ao calcular orçamento:', erro);
             res.status(500).json({ erro: 'Erro ao calcular orçamento' });
@@ -203,6 +208,8 @@ const catalogoController = {
 
     salvarConfiguracao: async (req, res) => {
         try {
+            const tipoMontagem = req.body.tipoMontagem ?? 'com-marchas';
+            if (!tipoValido(tipoMontagem)) return res.status(400).json({ erro: 'Tipo de montagem inválido.' });
             const nome = typeof req.body.nome === 'string' ? req.body.nome.trim() : '';
             const itens = Array.isArray(req.body.itens) ? req.body.itens : [];
 
@@ -228,7 +235,7 @@ const catalogoController = {
                 return res.status(409).json({ erro: 'Há peças indisponíveis na seleção. Substitua-as antes de salvar.' });
             }
 
-            const configuracao = await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar);
+            const configuracao = await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar, tipoMontagem);
             res.json({ id: configuracao.id, nome: configuracao.nome });
         } catch (erro) {
             console.error('Erro ao salvar configuração:', erro);
@@ -264,7 +271,8 @@ const catalogoController = {
             const indisponiveis = itensSalvos.filter(item => !produtoPorId.has(item.id)).map(item => ({
                 id: item.id, nome: item.nome || 'Peça indisponível', posicao: item.posicao || null
             }));
-            res.json({ id: configuracao.id, nome: configuracao.nome, itens, indisponiveis });
+            res.json({ id: configuracao.id, nome: configuracao.nome, itens, indisponiveis,
+                tipoMontagem: configuracao.tipo_montagem || 'com-marchas' });
         } catch (erro) {
             console.error('Erro ao carregar configuração:', erro);
             res.status(500).json({ erro: 'Erro ao carregar a configuração.' });

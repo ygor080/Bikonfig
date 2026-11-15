@@ -80,6 +80,15 @@
 
         <aside class="config-orcamento">
             <h2 class="config-menu-titulo">Resumo da configuração</h2>
+            <label for="tipoMontagem">Tipo de montagem</label>
+            <select id="tipoMontagem" class="config-tipo-montagem">
+                <option value="com-marchas">Com marchas — sem suspensão traseira</option>
+                <option value="single-speed">Single-speed — sem suspensão traseira</option>
+                <option value="suspensao-total">Com marchas — suspensão dianteira e traseira</option>
+            </select>
+            <section id="configCompletude" class="config-completude" aria-live="polite" aria-label="Componentes essenciais">
+                <p>Selecione peças para conferir os componentes essenciais faltantes.</p>
+            </section>
             <ul class="config-orcamento-lista" id="orcamentoLista">
                 <li class="config-orcamento-vazio">Nenhuma peça selecionada ainda.</li>
             </ul>

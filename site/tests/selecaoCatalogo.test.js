@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const codigo = fs.readFileSync(path.join(__dirname, '../public/js/configurador.js'), 'utf8');
 
-async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade } = {}) {
+async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade, completude } = {}) {
     function elemento() {
         const classes = new Set();
         return {
@@ -27,7 +27,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
     botao.closest = () => grupo;
     const elementos = Object.fromEntries([
         'configMenu', 'configListaPecas', 'orcamentoLista', 'orcamentoTotal', 'configAvisos', 'configIndisponiveis', 'configCompatibilidade',
-        'btnLimparConfig', 'btnSalvarConfig', 'btnBaixarPdf'
+        'btnLimparConfig', 'btnSalvarConfig', 'btnBaixarPdf', 'tipoMontagem', 'configCompletude'
     ].map(id => [id, elemento()]));
     elementos.configMenu.querySelectorAll = selector => selector === '.config-subitem-btn' ? [botao] : [];
     elementos.configMenu.querySelector = () => grupo;
@@ -46,7 +46,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
         fetch: async (url, opcoes) => {
             chamadas.push({ url, body: opcoes?.body && JSON.parse(opcoes.body) });
             if (url.includes('/api/pecas/')) return { ok, json: async () => encontrado ? [produto] : [] };
-            if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [], indisponiveis, compatibilidade }) };
+            if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [], indisponiveis, compatibilidade, completude }) };
             if (url === '/catalogo/api/configuracoes') return { ok: true };
             return { ok: true, json: async () => montagem || ({ itens: [] }) };
         }
@@ -139,4 +139,31 @@ test('interface distingue dados insuficientes, sem divergências e ausência de 
         const r = await abrir({ compatibilidade: { status, faltantes: [] } });
         assert.match(r.elementos.configCompatibilidade.children[0].textContent, mensagem);
     }
+});
+
+test('resumo lista itens faltantes e confirmações sem confundir com compatibilidade', async () => {
+    const r = await abrir({ completude: {
+        status: 'incompleta', selecionados: 1, total: 3,
+        faltantes: [{ nome: 'Pneu traseiro' }], confirmar: [{ nome: 'Número de coroas' }], observacao: 'Lista orientativa.'
+    } });
+    const filhos = r.elementos.configCompletude.children;
+    assert.match(filhos[0].textContent, /1 de 3 requisitos/);
+    assert.match(filhos[0].textContent, /incompleta/);
+    assert.equal(filhos[1].children[0].textContent, 'Falta: Pneu traseiro');
+    assert.equal(filhos[1].children[1].textContent, 'Confirmar: Número de coroas');
+    assert.equal(filhos[2].textContent, 'Lista orientativa.');
+    r.elementos.btnLimparConfig.listeners.click();
+    assert.match(r.elementos.configCompletude.textContent, /Nenhuma peça selecionada/);
+});
+
+test('tipo da montagem salva é restaurado, enviado no orçamento e preservado ao salvar novamente', async () => {
+    const r = await abrir({ query: '?config=salva', montagem: {
+        tipoMontagem: 'single-speed', itens: [{ id: 'produto-1', nome: 'Quadro', preco: 123, subcategoria: 'quadro' }]
+    } });
+    assert.equal(r.elementos.tipoMontagem.value, 'single-speed');
+    assert.equal(r.chamadas.find(c => c.url.endsWith('/api/orcamento')).body.tipoMontagem, 'single-speed');
+    assert.equal(r.chamadas.find(c => c.url.endsWith('/api/configuracoes')).body.tipoMontagem, 'single-speed');
+    r.elementos.tipoMontagem.value = 'suspensao-total';
+    await r.elementos.tipoMontagem.listeners.change();
+    assert.equal(r.chamadas.at(-1).body.tipoMontagem, 'suspensao-total');
 });

@@ -108,7 +108,8 @@ test('orçamento recebe posições e conserva as duas aplicações do mesmo prod
     let recebidas;
     model.buscarVariosPorId = async () => [peca('Pneu', 'pneus', 'pneus', { aro: 29 })];
     model.avaliarCompatibilidade = async pecas => { recebidas = pecas; return { avisos: [] }; };
-    const contexto = { module: { exports: {} }, console, require: nome => nome === '../models/produtoModel' ? model : {} };
+    const contexto = { module: { exports: {} }, console, require: nome => nome === '../models/produtoModel' ? model
+        : nome === '../models/completudeMontagem' ? require('../models/completudeMontagem') : {} };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/catalogoController.js'), 'utf8'), contexto);
     let resultado;
     await contexto.module.exports.calcularOrcamento({ body: { itens: [

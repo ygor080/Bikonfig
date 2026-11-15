@@ -70,9 +70,10 @@ quando quiser coletar produtos de uma loja parceira.
 `database/schema.sql` é um único arquivo que cria todas as tabelas do zero:
 `categories` (com hierarquia via `parent_id`), `sources`, `raw_scrapes`,
 `products`, `price_history`, `compatibility_rules`, `usuarios`,
-`configuracoes` e `configuracao_itens`. Não há mais arquivos de migração
-separados — o schema já nasce na versão final, pronta para rodar direto
-num banco Supabase resetado.
+`configuracoes` e `configuracao_itens`. Para bancos novos, use o schema
+completo. Para bases existentes, as alterações incrementais ficam em
+`database/migrations/`; a etapa 8 requer `008_tipo_montagem.sql` antes
+da publicação do código.
 
 A coluna `is_admin` (controla o acesso à tela de revisão de produtos) só é
 alterada com `UPDATE` direto no banco — não existe nenhum jeito de virar
@@ -116,6 +117,40 @@ motivo. Ver `api/README.md` para detalhes e exemplos de como adicionar
 novas regras.
 
 ## Front-end
+
+### Componentes essenciais e tipo de montagem
+
+O resumo inclui uma lista orientativa de componentes principais calculada
+no servidor com os produtos disponíveis. O seletor permite `com-marchas`
+(sem suspensão traseira), `single-speed` e `suspensao-total` (com marchas).
+O perfil é enviado no orçamento e salvo em `configuracoes.tipo_montagem`.
+Montagens anteriores recebem o padrão `com-marchas`.
+
+**Antes de publicar a etapa 8 em uma base existente**, aplique
+`database/migrations/008_tipo_montagem.sql`. A migração adiciona uma coluna
+com valor padrão, sem apagar configurações. Ela não foi executada no
+banco de produção durante o desenvolvimento.
+
+As regras de inventário estão em `site/models/completudeMontagem.js`.
+Elas consideram as duas posições de rodas/pneus/freios/fixações, rodas
+completas ou aro+cubo+raios avulsos, transmissão, cockpit e estrutura.
+Múltiplas coroas exigem câmbio e comando dianteiros; quando o número
+de coroas não está informado, aparece uma pendência de confirmação.
+O perfil de suspensão total exige também amortecedor traseiro.
+
+Não se deduz o conteúdo de um kit pelo nome do anúncio. Campos explícitos
+em `specs` podem indicar `componentes_inclusos` (lista de slugs),
+`vendido_em_par: true`, `inclui_disco: true` e
+`tipo_transmissao: "single-speed"`. O uso de tubeless só é reconhecido
+com `tubeless: true` e permanece pendente de confirmação do sistema;
+não basta o pneu ser anunciado como tubeless-ready. Uma roda completa
+não preenche automaticamente pneu, câmara, disco ou fixação da roda.
+
+Montagens incompletas podem ser salvas como trabalho em andamento.
+Ter todos os componentes principais selecionados não atesta quantidades,
+compatibilidade, itens pequenos ou segurança da montagem. Os detalhes
+de cada sistema devem seguir a documentação do fabricante, por exemplo
+[SHIMANO: instalação de pneus tubeless](https://si.shimano.com/en/pdfs/dm/WH0007/DM-WH0007-05-ENG.pdf).
 
 ### Revisão das regras de compatibilidade
 

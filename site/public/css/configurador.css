@@ -286,6 +286,24 @@
     margin: 10px 0;
 }
 
+.config-tipo-montagem {
+    width: 100%;
+    margin: 6px 0 12px;
+    padding: 8px;
+    font: inherit;
+}
+
+.config-completude {
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #e8dfd3;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.config-completude ul { padding-left: 18px; margin: 8px 0; }
+.config-completude li { margin: 4px 0; }
+
 .config-aviso-compat {
     background: #fff3e0;
     color: #b35c00;
