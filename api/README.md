@@ -215,3 +215,25 @@ do site permite corrigir ou limpar esse campo explicitamente.
 
 Os testes isolados dessa coleta podem ser executados sem rede, IA ou
 banco com `python -m unittest discover -s api/tests` a partir da raiz.
+
+## Estoque em três estados (etapa 10)
+
+Aplique `../database/migrations/010_disponibilidade_estoque.sql` antes da
+publicação. A coleta grava `in_stock` como `true`, `false` ou `null`, e
+registra `stock_checked_at`. `is_active` permanece independente. O endpoint
+`/api/products` devolve os três campos; a data é serializada em ISO 8601.
+
+Para HTML, configure marcadores explícitos no perfil, por exemplo:
+
+```python
+"availability": {
+    "in_stock": ".stock.available",
+    "out_of_stock": ".stock.sold-out",
+},
+```
+
+Sem marcador, ou com marcadores contraditórios, o estoque fica desconhecido.
+No Shopify, o booleano `available` da variante usada para o preço fornece
+o estado. Valores ausentes, strings e números não confirmam estoque.
+Uma nova coleta sem evidência substitui a informação anterior por `null`,
+sem modificar a ativação administrativa do produto.

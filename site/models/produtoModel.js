@@ -13,7 +13,9 @@ const CAMPOS_PRODUTO = `
     p.specs AS specs,
     p.is_optional AS opcional,
     p.image_url AS imagem,
-    p.is_active AS em_estoque
+    p.is_active AS ativo,
+    p.in_stock AS em_estoque,
+    p.stock_checked_at AS estoque_verificado_em
 `;
 
 const FROM_PRODUTO = `
@@ -122,6 +124,7 @@ function normalizarProduto(produto) {
 const normalizarSpec = require('./normalizarSpec');
 
 const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
+const PRODUTO_PUBLICAVEL_SQL = require('../config/produtoPublicavel');
 
 class ProdutoModel {
     static async getEstruturaCategorias() {
@@ -170,7 +173,7 @@ class ProdutoModel {
         const termo = busca && busca.trim() ? `%${busca.trim()}%` : null;
         const { rows } = await pool.query(
             `SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO}
-             WHERE ${PRODUTO_DISPONIVEL_SQL}
+             WHERE ${PRODUTO_PUBLICAVEL_SQL}
              AND ($1::text IS NULL OR p.name ILIKE $1 OR p.manufacturer ILIKE $1 OR s.name ILIKE $1)
              ORDER BY ${ORDEM_PRIORIDADE_SQL}, p.name`,
             [termo]
@@ -199,6 +202,7 @@ class ProdutoModel {
                 p.id, p.name AS nome, p.product_url, p.image_url AS imagem,
                 COALESCE(p.current_price, 0) AS preco,
                 NULLIF(BTRIM(p.manufacturer), '') AS fabricante, s.name AS loja,
+                p.is_active AS ativo, p.in_stock AS em_estoque, p.stock_checked_at AS estoque_verificado_em,
                 p.specs, p.ai_confidence AS confianca, p.is_optional AS opcional,
                 c.slug AS categoria_atual, c.name AS categoria_atual_nome
             FROM products p

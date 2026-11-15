@@ -47,19 +47,22 @@ function preparar() {
     return { chamar, salvou: () => salvou };
 }
 
-test('todas as consultas públicas de produto compartilham o mesmo filtro de disponibilidade', async () => {
+test('catálogo permite exibir sem estoque; consultas de seleção usam filtro mais restrito', async () => {
     const consultas = [];
     const model = carregar('../models/produtoModel.js', {
         './normalizarSpec': require('../models/normalizarSpec'),
         '../config/banco': { pool: { query: async sql => { consultas.push(sql); return { rows: [] }; } } },
-        '../config/produtoDisponivel': filtro
+        '../config/produtoDisponivel': filtro,
+        '../config/produtoPublicavel': require('../config/produtoPublicavel')
     });
     await model.listarTodos('');
     await model.listarPorSubcategoria('pneus');
     await model.buscarPorId('id');
     await model.buscarVariosPorId(['id']);
     assert.equal(consultas.length, 4);
-    consultas.forEach(sql => assert.ok(sql.includes(filtro)));
+    assert.ok(consultas[0].includes(require('../config/produtoPublicavel')));
+    assert.ok(!consultas[0].includes('in_stock IS DISTINCT FROM false'));
+    consultas.slice(1).forEach(sql => assert.ok(sql.includes(filtro)));
     assert.match(filtro, /is_active = true/);
     assert.match(filtro, /needs_review = false/);
     assert.match(filtro, /current_price > 0/);

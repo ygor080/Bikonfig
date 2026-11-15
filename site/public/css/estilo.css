@@ -630,6 +630,14 @@ input:focus-visible {
     background: var(--laranja-escuro);
 }
 
+.btn-adicionar:disabled {
+    background: #d7d1ca;
+    color: #59534d;
+    cursor: not-allowed;
+}
+
+.estoque-desconhecido { color: #746c61; }
+
 @media (max-width: 760px) {
     .menu-toggle {
         display: flex;

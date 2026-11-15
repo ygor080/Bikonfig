@@ -156,7 +156,9 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
             variants = prod.get("variants") or []
             if not variants:
                 continue
-            variant = next((v for v in variants if v.get("available")), variants[0])
+            variant = next((v for v in variants if v.get("available") is True),
+                           next((v for v in variants if not isinstance(v.get("available"), bool)), variants[0]))
+            in_stock = variant.get("available") if isinstance(variant.get("available"), bool) else None
 
             images = prod.get("images") or []
             image_url = images[0]["src"] if images else None
@@ -168,6 +170,7 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
                 "manufacturer": prod.get(profile["manufacturer_field"]) if profile.get("manufacturer_field") else None,
                 "raw_price_text": variant.get("price") or "",
                 "price": parse_shopify_price(variant.get("price")),
+                "in_stock": in_stock,
                 "image_url": image_url,
                 "product_url": f"{base}/products/{prod.get('handle')}",
             })
@@ -195,6 +198,15 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
         image_el = card.select_one(profile["image"])
         link_el = card.select_one(profile["link"])
         manufacturer_el = card.select_one(profile["manufacturer"]) if profile.get("manufacturer") else None
+        availability = profile.get("availability") or {}
+        available_el = card.select_one(availability["in_stock"]) if availability.get("in_stock") else None
+        unavailable_el = card.select_one(availability["out_of_stock"]) if availability.get("out_of_stock") else None
+        # Somente um marcador explícito e não contraditório confirma o estado.
+        in_stock = None
+        if available_el is not None and unavailable_el is None:
+            in_stock = True
+        elif unavailable_el is not None and available_el is None:
+            in_stock = False
 
         if not (name_el and link_el):
             continue
@@ -209,6 +221,7 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
             "manufacturer": manufacturer_el.get_text(" ", strip=True) if manufacturer_el else None,
             "raw_price_text": raw_price_text,
             "price": parse_price(raw_price_text),
+            "in_stock": in_stock,
             "image_url": image_url,
             "product_url": product_url,
         })
@@ -268,6 +281,7 @@ def scrape_and_store(url: str) -> int:
             needs_review=needs_review,
             is_optional=ai_result["opcional"],
             manufacturer=item.get("manufacturer"),
+            in_stock=item.get("in_stock"),
         )
 
         flag = "⚠ revisar" if needs_review else "✓"
@@ -301,6 +315,9 @@ def get_products():
                 p.id,
                 p.name,
                 p.manufacturer,
+                p.is_active,
+                p.in_stock,
+                p.stock_checked_at,
                 p.current_price,
                 p.image_url,
                 p.product_url,
@@ -328,6 +345,9 @@ def get_products():
             "id": str(p["id"]),
             "name": p["name"],
             "manufacturer": p["manufacturer"],
+            "is_active": p["is_active"],
+            "in_stock": p["in_stock"],
+            "stock_checked_at": p["stock_checked_at"].isoformat() if p["stock_checked_at"] else None,
             "current_price": float(p["current_price"]) if p["current_price"] else None,
             "image_url": p["image_url"],
             "product_url": p["product_url"],

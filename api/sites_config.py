@@ -27,6 +27,8 @@ Para adicionar uma loja que não é Shopify:
 3. Adicione uma entrada abaixo com platform="custom_html" e os seletores.
    O seletor opcional "manufacturer" deve apontar ao fabricante explícito
    do produto. Se ausente, o fabricante permanece desconhecido.
+   Para estoque, configure "availability" com os seletores opcionais
+   "in_stock" e "out_of_stock". Sem marcador explícito, o estado é desconhecido.
 """
 
 SITE_PROFILES = {

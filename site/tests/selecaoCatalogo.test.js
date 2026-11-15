@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const codigo = fs.readFileSync(path.join(__dirname, '../public/js/configurador.js'), 'utf8');
 
-async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade, completude, fabricante = null, loja = 'Loja' } = {}) {
+async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade, completude, fabricante = null, loja = 'Loja', emEstoque = null } = {}) {
     function elemento() {
         const classes = new Set();
         return {
@@ -32,7 +32,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
     elementos.configMenu.querySelectorAll = selector => selector === '.config-subitem-btn' ? [botao] : [];
     elementos.configMenu.querySelector = () => grupo;
     const chamadas = [], avisos = [];
-    const produto = { id: 'produto-1', nome: 'Produto escolhido', preco: 123, subcategoria, fabricante, loja };
+    const produto = { id: 'produto-1', nome: 'Produto escolhido', preco: 123, subcategoria, fabricante, loja, em_estoque: emEstoque };
     let iniciar;
     vm.runInNewContext(codigo, {
         document: {
@@ -181,4 +181,12 @@ test('metadados de fabricante e loja são escapados ao renderizar o configurador
     const r = await abrir({ fabricante: '<img onerror="alert(1)">', loja: '<script>loja</script>' });
     assert.match(r.elementos.configListaPecas.innerHTML, /&lt;img onerror=&quot;/);
     assert.match(r.elementos.configListaPecas.innerHTML, /&lt;script&gt;loja/);
+});
+
+test('configurador distingue estoque confirmado de desconhecido', async () => {
+    const conhecido = await abrir({ emEstoque: true });
+    assert.match(conhecido.elementos.configListaPecas.innerHTML, /Em estoque na última coleta/);
+    const desconhecido = await abrir();
+    assert.match(desconhecido.elementos.configListaPecas.innerHTML, /Disponibilidade desconhecida/);
+    assert.doesNotMatch(desconhecido.elementos.configListaPecas.innerHTML, /Em estoque na última coleta/);
 });

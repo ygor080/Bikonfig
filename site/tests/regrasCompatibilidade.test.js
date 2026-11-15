@@ -9,7 +9,7 @@ function preparar(regras) {
     const contexto = { module: { exports: {} }, require: nome => {
         if (nome === '../config/banco') return { pool: { query: async () => ({ rows: regras }) } };
         if (nome === './normalizarSpec') return require('../models/normalizarSpec');
-        return require('../config/produtoDisponivel');
+        return require(nome === '../config/produtoPublicavel' ? '../config/produtoPublicavel' : '../config/produtoDisponivel');
     } };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../models/produtoModel.js'), 'utf8'), contexto);
     return contexto.module.exports;

@@ -100,6 +100,7 @@ def upsert_product(
     needs_review: bool,
     is_optional: bool = False,
     manufacturer: str | None = None,
+    in_stock: bool | None = None,
 ) -> str:
     """
     Insere ou atualiza um produto. Se o preço mudou em relação ao que já
@@ -110,6 +111,8 @@ def upsert_product(
     """
     manufacturer = " ".join(manufacturer.split()) if isinstance(manufacturer, str) else None
     manufacturer = manufacturer or None
+    # Ausência de evidência não deve ser convertida em "sem estoque".
+    in_stock = in_stock if isinstance(in_stock, bool) else None
     category_id = get_category_id(conn, category_slug) if category_slug else None
 
     with conn.cursor() as cur:
@@ -135,24 +138,26 @@ def upsert_product(
                     ai_confidence = COALESCE(%s, ai_confidence),
                     needs_review = %s,
                     is_optional = %s,
+                    in_stock = %s,
+                    stock_checked_at = now(),
                     manufacturer = COALESCE(%s, manufacturer),
                     updated_at = now()
                 WHERE id = %s
                 """,
                 (name, image_url, price, category_id, json.dumps(specs),
-                 ai_confidence, needs_review, is_optional, manufacturer, product_id),
+                 ai_confidence, needs_review, is_optional, in_stock, manufacturer, product_id),
             )
         else:
             cur.execute(
                 """
                 INSERT INTO products
                     (source_id, category_id, name, product_url, image_url,
-                     current_price, specs, ai_confidence, needs_review, is_optional, manufacturer)
-                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+                     current_price, specs, ai_confidence, needs_review, is_optional, in_stock, manufacturer, stock_checked_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, now())
                 RETURNING id
                 """,
                 (source_id, category_id, name, product_url, image_url,
-                 price, json.dumps(specs), ai_confidence, needs_review, is_optional, manufacturer),
+                 price, json.dumps(specs), ai_confidence, needs_review, is_optional, in_stock, manufacturer),
             )
             product_id = cur.fetchone()["id"]
             price_changed = price is not None

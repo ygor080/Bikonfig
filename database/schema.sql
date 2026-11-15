@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS manufacturer TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS in_stock BOOLEAN;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_checked_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_products_needs_review ON products(needs_review) WHERE needs_review = true;
 CREATE INDEX IF NOT EXISTS idx_products_is_optional ON products(is_optional);
 CREATE INDEX IF NOT EXISTS idx_products_specs ON products USING GIN (specs);

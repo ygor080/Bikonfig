@@ -74,7 +74,8 @@ quando quiser coletar produtos de uma loja parceira.
 completo. Para bases existentes, as alterações incrementais ficam em
 `database/migrations/`; aplique as migrações correspondentes antes de
 publicar: `008_tipo_montagem.sql` (etapa 8) e
-`009_fabricante_produto.sql` (etapa 9).
+`009_fabricante_produto.sql` (etapa 9) e
+`010_disponibilidade_estoque.sql` (etapa 10).
 
 A coluna `is_admin` (controla o acesso à tela de revisão de produtos) só é
 alterada com `UPDATE` direto no banco — não existe nenhum jeito de virar
@@ -118,6 +119,36 @@ motivo. Ver `api/README.md` para detalhes e exemplos de como adicionar
 novas regras.
 
 ## Front-end
+
+### Disponibilidade de estoque (etapa 10)
+
+Antes de publicar esta versão, aplique
+`database/migrations/010_disponibilidade_estoque.sql` no banco compartilhado.
+Ela adiciona `products.in_stock` (booleano opcional) e `stock_checked_at`.
+Produtos antigos ficam com estoque desconhecido. Não se converte
+`is_active` em evidência de estoque: esse campo continua controlando a
+presença administrativa do produto na aplicação.
+
+O catálogo exibe ofertas ativas, aprovadas e com preço válido, inclusive
+as sem estoque, que aparecem com a seleção desabilitada. Consultas de
+seleção, orçamento, PDF, salvamento e totais de montagens excluem estoque
+explicitamente falso. Estoque desconhecido permite planejamento, com
+aviso para confirmar na loja. Montagens salvas mantêm o tratamento de
+itens indisponíveis da etapa 3. A interface usa os rótulos "Em estoque na
+última coleta", "Sem estoque na última coleta" e "Disponibilidade
+desconhecida", e mostra a data da consulta quando registrada.
+
+No Shopify, estoque e preço vêm da mesma variante representativa: prefere
+uma com `available: true`; sem ela, prefere uma de disponibilidade
+desconhecida antes de escolher uma explicitamente esgotada. Apenas
+booleanos são aceitos como confirmação. Isso não implementa escolha de
+tamanho/variante pelo usuário, prevista para a evolução do catálogo.
+
+Em HTML, o perfil pode declarar `availability` com seletores `in_stock`
+e `out_of_stock`. Ausência ou presença simultânea dos marcadores resulta
+em estoque desconhecido. Cada coleta concluída atualiza a data da
+consulta e substitui o estado anterior, inclusive por desconhecido se
+a evidência não estiver mais disponível. A coleta não altera `is_active`.
 
 ### Fabricante e loja
 

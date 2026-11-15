@@ -70,6 +70,9 @@ const catalogoController = {
             const compatibilidade = await ProdutoModel.avaliarCompatibilidade([...porAplicacao.values()]);
             const avisos = [...compatibilidade.avisos];
             const indisponiveis = idsUnicos.filter(id => !porId.has(id));
+            if (produtosUnicos.some(p => p.em_estoque === null)) {
+                avisos.push('Há peças com disponibilidade de estoque desconhecida. O orçamento serve para planejamento; confirme o estoque na loja antes de comprar.');
+            }
             if (indisponiveis.length) avisos.push('Há peças indisponíveis na seleção. O total considera somente as peças disponíveis; substitua as demais antes de salvar ou exportar.');
 
             const completude = avaliarCompletude([...porAplicacao.values()], tipoMontagem);

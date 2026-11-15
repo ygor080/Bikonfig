@@ -104,12 +104,13 @@ class ManufacturerTests(unittest.TestCase):
             "urlparse": urlparse, "get_profile": lambda domain: {"platform": "shopify", "display_name": "Loja A"},
             "robots_allows": lambda _: True, "db": db,
             "collect_products_shopify": lambda *a: [{"name": "Produto", "product_url": "https://loja.test/p",
-                "raw_price_text": "10", "image_url": None, "price": 10, "manufacturer": "Fabricante A"}],
+                "raw_price_text": "10", "image_url": None, "price": 10, "manufacturer": "Fabricante A", "in_stock": False}],
             "categorize_product": lambda _: {"categoria": "quadro", "confianca": 1, "specs": {}, "opcional": False},
             "CONFIDENCE_THRESHOLD": 0.7, "time": types.SimpleNamespace(sleep=lambda _: None)})
         self.assertEqual(scope["scrape_and_store"]("https://loja.test/collections/pecas"), 1)
         self.assertEqual(saved[0]["manufacturer"], "Fabricante A")
         self.assertEqual(saved[0]["source_id"], 1)
+        self.assertIs(saved[0]["in_stock"], False)
 
 
 if __name__ == "__main__":

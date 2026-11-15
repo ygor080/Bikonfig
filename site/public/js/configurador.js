@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="grid-produtos">' +
             pecas.map(function (peca) {
                 const ativo = ativoParaPeca(peca);
+                const consultaEstoque = peca.estoque_verificado_em ? new Date(peca.estoque_verificado_em) : null;
+                const dataEstoque = consultaEstoque && !Number.isNaN(consultaEstoque.getTime())
+                    ? consultaEstoque.toISOString().slice(0, 10) : null;
                 return (
                     '<div class="produto-card config-produto-card' + (ativo ? ' selecionado' : '') + '" data-id="' + peca.id + '">' +
                         (peca.opcional ? '<span class="tag-opcional">opcional</span>' : '') +
@@ -193,6 +196,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         '<p class="preco">R$ ' + peca.preco.toFixed(2) + '</p>' +
                         '<p class="fabricante">Fabricante: ' + textoSeguro(peca.fabricante || 'Não informado') + '</p>' +
                         '<p class="loja">Loja: ' + textoSeguro(peca.loja || 'Não informada') + '</p>' +
+                        '<p class="estoque">' + (peca.em_estoque === true ? 'Em estoque na última coleta'
+                            : peca.em_estoque === false ? 'Sem estoque na última coleta' : 'Disponibilidade desconhecida') + '</p>' +
+                        (dataEstoque ? '<p class="loja">Consulta de estoque: ' + dataEstoque + '</p>' : '') +
                         (peca.aro ? '<p class="fabricante">Aro: ' + textoSeguro(peca.aro) + '</p>' : '') +
                         '<button type="button" class="btn-adicionar" data-selecionar="' + peca.id + '">' +
                             (ativo ? (multipla ? 'Selecionado ✓ (remover)' : 'Selecionado ✓') : 'Selecionar') +

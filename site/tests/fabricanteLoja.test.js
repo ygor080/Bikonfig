@@ -11,7 +11,7 @@ function modelo(rows = []) {
             consultas.push({ sql, valores }); return { rows };
         } } };
         if (nome === './normalizarSpec') return require('../models/normalizarSpec');
-        return require('../config/produtoDisponivel');
+        return require(nome === '../config/produtoPublicavel' ? '../config/produtoPublicavel' : '../config/produtoDisponivel');
     } };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../models/produtoModel.js'), 'utf8'), contexto);
     return { model: contexto.module.exports, consultas };

@@ -59,6 +59,8 @@
                                 <a href="<%= p.product_url %>" target="_blank" rel="noopener noreferrer" class="admin-card__nome"><%= p.nome %></a>
                                 <p class="admin-card__meta">
                                     Loja: <%= p.loja %> · R$ <%= p.preco.toFixed(2) %>
+                                    · Estoque: <%= p.em_estoque === true ? 'disponível na última coleta' : p.em_estoque === false ? 'indisponível na última coleta' : 'desconhecido' %>
+                                    · Produto: <%= p.ativo === true ? 'ativo' : 'inativo' %>
                                     <% if (p.opcional) { %> · <span class="tag-opcional">opcional</span><% } %>
                                 </p>
                                 <p class="admin-card__meta">

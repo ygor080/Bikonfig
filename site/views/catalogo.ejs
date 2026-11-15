@@ -109,15 +109,24 @@
                         <p class="fabricante">Fabricante: <%= produtos[i].fabricante || 'Não informado' %></p>
                         <p class="loja">Loja: <%= produtos[i].loja %></p>
                         <div class="estoque">
-                            <% if (produtos[i].em_estoque) { %>
-                                <span class="em-estoque">Em estoque</span>
+                            <% if (produtos[i].em_estoque === true) { %>
+                                <span class="em-estoque">Em estoque na última coleta</span>
+                            <% } else if (produtos[i].em_estoque === false) { %>
+                                <span class="sem-estoque">Sem estoque na última coleta</span>
                             <% } else { %>
-                                <span class="sem-estoque">Sem estoque</span>
+                                <span class="estoque-desconhecido">Disponibilidade desconhecida</span>
                             <% } %>
                         </div>
+                        <% if (produtos[i].em_estoque === false) { %>
+                        <button type="button" class="btn-adicionar" disabled>Indisponível para seleção</button>
+                        <% } else { %>
                         <a class="btn-adicionar" href="/catalogo/configurador?produto=<%= encodeURIComponent(produtos[i].id) %>&amp;subcategoria=<%= encodeURIComponent(produtos[i].subcategoria || '') %>">
                             Configurar com essa peça
                         </a>
+                        <% } %>
+                        <% if (produtos[i].estoque_verificado_em) { %>
+                            <p class="loja">Consulta de estoque: <%= new Date(produtos[i].estoque_verificado_em).toISOString().slice(0, 10) %></p>
+                        <% } %>
                     </div>
                 <% } %>
             </div>
