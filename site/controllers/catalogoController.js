@@ -50,8 +50,10 @@ const catalogoController = {
             const pecas = ids.map(id => porId.get(id)).filter(Boolean);
             const total = pecas.reduce((soma, peca) => soma + Number(peca.preco), 0);
             const avisos = await ProdutoModel.verificarCompatibilidade(produtosUnicos);
+            const indisponiveis = idsUnicos.filter(id => !porId.has(id));
+            if (indisponiveis.length) avisos.push('Há peças indisponíveis na seleção. O total considera somente as peças disponíveis; substitua as demais antes de salvar ou exportar.');
 
-            res.json({ pecas, total, avisos });
+            res.json({ pecas, total, avisos, indisponiveis });
         } catch (erro) {
             console.error('Erro ao calcular orçamento:', erro);
             res.status(500).json({ erro: 'Erro ao calcular orçamento' });
@@ -69,6 +71,11 @@ const catalogoController = {
             const idsUnicos = [...new Set(itens.map(item => item.id).filter(Boolean))];
             const produtosUnicos = await ProdutoModel.buscarVariosPorId(idsUnicos);
             const porId = new Map(produtosUnicos.map(p => [p.id, p]));
+
+            const indisponiveis = idsUnicos.filter(id => !porId.has(id));
+            if (indisponiveis.length) {
+                return res.status(409).json({ erro: 'Há peças indisponíveis na seleção. Substitua-as antes de gerar o PDF.', indisponiveis });
+            }
 
             const rotuloPosicao = posicao =>
                 posicao === 'dianteira' ? ' (dianteira)' : posicao === 'traseira' ? ' (traseira)' : '';
@@ -200,6 +207,12 @@ const catalogoController = {
                 .filter(item => item && item.id)
                 .map(item => ({ id: item.id, posicao: item.posicao || null }));
 
+            const produtos = await ProdutoModel.buscarVariosPorId([...new Set(idsValidos)]);
+            const disponiveis = new Set(produtos.map(produto => produto.id));
+            if (idsValidos.some(id => !disponiveis.has(id))) {
+                return res.status(409).json({ erro: 'Há peças indisponíveis na seleção. Substitua-as antes de salvar.' });
+            }
+
             const configuracao = await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar);
             res.json({ id: configuracao.id, nome: configuracao.nome });
         } catch (erro) {
@@ -233,7 +246,10 @@ const catalogoController = {
                 };
             });
 
-            res.json({ id: configuracao.id, nome: configuracao.nome, itens: itens });
+            const indisponiveis = itensSalvos.filter(item => !produtoPorId.has(item.id)).map(item => ({
+                id: item.id, nome: item.nome || 'Peça indisponível', posicao: item.posicao || null
+            }));
+            res.json({ id: configuracao.id, nome: configuracao.nome, itens, indisponiveis });
         } catch (erro) {
             console.error('Erro ao carregar configuração:', erro);
             res.status(500).json({ erro: 'Erro ao carregar a configuração.' });

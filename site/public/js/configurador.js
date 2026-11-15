@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const orcamentoListaEl = document.getElementById('orcamentoLista');
     const orcamentoTotalEl = document.getElementById('orcamentoTotal');
     const avisosEl = document.getElementById('configAvisos');
+    const indisponiveisEl = document.getElementById('configIndisponiveis');
     const btnLimpar = document.getElementById('btnLimparConfig');
     const btnSalvarConfig = document.getElementById('btnSalvarConfig');
     const btnBaixarPdf = document.getElementById('btnBaixarPdf');
@@ -311,6 +312,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const dados = await resposta.json();
 
             orcamentoTotalEl.textContent = 'R$ ' + dados.total.toFixed(2);
+            const idsIndisponiveis = new Set(dados.indisponiveis || []);
+            if (idsIndisponiveis.size) {
+                // Não manter preços antigos no resumo quando a disponibilidade muda.
+                Array.from(orcamentoListaEl.children).forEach(function (linha, indice) {
+                    if (idsIndisponiveis.has(entradas[indice]?.id)) {
+                        linha.lastElementChild.textContent = 'Indisponível — fora do total';
+                    }
+                });
+            }
 
             avisosEl.innerHTML = (dados.avisos || []).map(function (aviso) {
                 return '<p class="config-aviso-compat">⚠ ' + aviso + '</p>';
@@ -323,6 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btnLimpar.addEventListener('click', function () {
         Object.keys(selecionadas).forEach(key => delete selecionadas[key]);
         Object.keys(posicaoAtivaPorSub).forEach(key => delete posicaoAtivaPorSub[key]);
+        if (indisponiveisEl) indisponiveisEl.textContent = '';
         document.querySelectorAll('.parte-selecionada').forEach(function (el) {
             el.classList.remove('parte-selecionada');
         });
@@ -429,6 +440,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const resposta = await fetch('/catalogo/api/configuracoes/' + id);
             if (!resposta.ok) throw new Error('Configuração não encontrada.');
             const dados = await resposta.json();
+
+            if (indisponiveisEl) {
+                indisponiveisEl.textContent = '';
+                if (dados.indisponiveis?.length) {
+                    const aviso = document.createElement('p');
+                    aviso.className = 'config-aviso-compat';
+                    aviso.textContent = 'Montagem reaberta com peças indisponíveis. Elas continuam na configuração salva, mas foram excluídas desta seleção, do total e do PDF. Escolha substitutas: ' + dados.indisponiveis.map(function (item) {
+                        const posicao = item.posicao === 'dianteira' ? ' (dianteira)' : item.posicao === 'traseira' ? ' (traseira)' : '';
+                        return item.nome + posicao;
+                    }).join('; ') + '.';
+                    indisponiveisEl.appendChild(aviso);
+                }
+            }
 
             dados.itens.forEach(function (peca) {
                 let chave;

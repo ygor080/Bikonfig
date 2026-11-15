@@ -127,7 +127,7 @@ function normalizarSpec(valor) {
     return valor === undefined || valor === null ? null : String(valor).trim().toLowerCase();
 }
 
-const PRODUTO_DISPONIVEL_SQL = 'p.current_price IS NOT NULL AND p.current_price > 0';
+const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
 
 class ProdutoModel {
     static async getEstruturaCategorias() {
@@ -176,7 +176,7 @@ class ProdutoModel {
         const termo = busca && busca.trim() ? `%${busca.trim()}%` : null;
         const { rows } = await pool.query(
             `SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO}
-             WHERE p.is_active = true AND p.needs_review = false AND ${PRODUTO_DISPONIVEL_SQL}
+             WHERE ${PRODUTO_DISPONIVEL_SQL}
              AND ($1::text IS NULL OR p.name ILIKE $1 OR s.name ILIKE $1)
              ORDER BY ${ORDEM_PRIORIDADE_SQL}, p.name`,
             [termo]
@@ -185,17 +185,17 @@ class ProdutoModel {
     }
 
     static async listarPorSubcategoria(subcategoria) {
-        const { rows } = await pool.query(`SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO} WHERE c.slug = $1 AND p.is_active = true AND p.needs_review = false AND ${PRODUTO_DISPONIVEL_SQL} ORDER BY p.name`, [subcategoria]);
+        const { rows } = await pool.query(`SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO} WHERE c.slug = $1 AND ${PRODUTO_DISPONIVEL_SQL} ORDER BY p.name`, [subcategoria]);
         return rows.map(normalizarProduto);
     }
 
     static async buscarPorId(id) {
-        const { rows } = await pool.query(`SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO} WHERE p.id = $1 AND p.needs_review = false AND ${PRODUTO_DISPONIVEL_SQL} LIMIT 1`, [id]);
+        const { rows } = await pool.query(`SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO} WHERE p.id = $1 AND ${PRODUTO_DISPONIVEL_SQL} LIMIT 1`, [id]);
         return normalizarProduto(rows[0]);
     }
 
     static async buscarVariosPorId(ids) {
-        const { rows } = await pool.query(`SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO} WHERE p.id = ANY($1::uuid[]) AND p.needs_review = false AND ${PRODUTO_DISPONIVEL_SQL}`, [ids]);
+        const { rows } = await pool.query(`SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO} WHERE p.id = ANY($1::uuid[]) AND ${PRODUTO_DISPONIVEL_SQL}`, [ids]);
         return rows.map(normalizarProduto);
     }
 

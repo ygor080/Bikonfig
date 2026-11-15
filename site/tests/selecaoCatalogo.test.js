@@ -6,18 +6,19 @@ const vm = require('node:vm');
 
 const codigo = fs.readFileSync(path.join(__dirname, '../public/js/configurador.js'), 'utf8');
 
-async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query } = {}) {
+async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [] } = {}) {
     function elemento() {
         const classes = new Set();
         return {
-            innerHTML: '', textContent: '', dataset: {}, listeners: {},
+            innerHTML: '', textContent: '', dataset: {}, listeners: {}, children: [],
             classList: {
                 add: c => classes.add(c), remove: c => classes.delete(c),
                 toggle: (c, ativo) => ativo ? classes.add(c) : classes.delete(c),
                 contains: c => classes.has(c)
             },
             addEventListener(nome, fn) { this.listeners[nome] = fn; },
-            querySelectorAll: () => [], querySelector: () => null, appendChild() {}
+            querySelectorAll: () => [], querySelector: () => null,
+            appendChild(filho) { this.children.push(filho); }
         };
     }
     const grupo = elemento();
@@ -25,7 +26,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
     botao.dataset = { subcategoria, nome: 'Categoria' };
     botao.closest = () => grupo;
     const elementos = Object.fromEntries([
-        'configMenu', 'configListaPecas', 'orcamentoLista', 'orcamentoTotal', 'configAvisos',
+        'configMenu', 'configListaPecas', 'orcamentoLista', 'orcamentoTotal', 'configAvisos', 'configIndisponiveis',
         'btnLimparConfig', 'btnSalvarConfig', 'btnBaixarPdf'
     ].map(id => [id, elemento()]));
     elementos.configMenu.querySelectorAll = selector => selector === '.config-subitem-btn' ? [botao] : [];
@@ -45,9 +46,9 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
         fetch: async (url, opcoes) => {
             chamadas.push({ url, body: opcoes?.body && JSON.parse(opcoes.body) });
             if (url.includes('/api/pecas/')) return { ok, json: async () => encontrado ? [produto] : [] };
-            if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [] }) };
+            if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [], indisponiveis }) };
             if (url === '/catalogo/api/configuracoes') return { ok: true };
-            return { ok: true, json: async () => ({ itens: [] }) };
+            return { ok: true, json: async () => montagem || ({ itens: [] }) };
         }
     });
     iniciar();
@@ -95,4 +96,22 @@ test('configuração salva tem prioridade sobre parâmetros de produto', async (
 test('abrir o configurador sem parâmetros mantém a seleção vazia', async () => {
     const r = await abrir({ query: '' });
     assert.equal(r.chamadas.length, 0);
+});
+
+test('montagem reaberta mostra aviso persistente com peças e posições indisponíveis', async () => {
+    const r = await abrir({ query: '?config=salva', montagem: {
+        itens: [{ id: 'produto-1', nome: 'Quadro', preco: 123, subcategoria: 'quadro' }],
+        indisponiveis: [
+            { id: 'antigo', nome: 'Pneu antigo', posicao: 'dianteira' },
+            { id: 'antigo', nome: 'Pneu antigo', posicao: 'traseira' }
+        ]
+    } });
+    const aviso = r.elementos.configIndisponiveis.children[0].textContent;
+    assert.match(aviso, /Pneu antigo \(dianteira\)/);
+    assert.match(aviso, /Pneu antigo \(traseira\)/);
+    assert.match(aviso, /excluídas desta seleção, do total e do PDF/);
+    assert.deepEqual(r.chamadas.find(c => c.url.endsWith('/api/configuracoes')).body.itens,
+        [{ id: 'produto-1', posicao: null }]);
+    r.elementos.btnLimparConfig.listeners.click();
+    assert.equal(r.elementos.configIndisponiveis.textContent, '');
 });

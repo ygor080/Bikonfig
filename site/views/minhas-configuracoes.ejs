@@ -60,6 +60,9 @@
                                     R$ <%= c.totalPreco.toFixed(2) %> ·
                                     salva em <%= new Date(c.criadoEm).toLocaleDateString('pt-BR') %>
                                 </p>
+                                <% if (c.totalIndisponiveis > 0) { %>
+                                    <p class="config-aviso-compat"><%= c.totalIndisponiveis %> peça(s) indisponível(is). Valor parcial, somente das peças disponíveis. Abra a montagem para escolher substitutas.</p>
+                                <% } %>
                             </div>
                         </div>
 
