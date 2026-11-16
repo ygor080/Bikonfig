@@ -11,7 +11,7 @@ from test_manufacturer import functions
 class StockTests(unittest.TestCase):
     def shopify(self, variants):
         response = types.SimpleNamespace(status_code=200, raise_for_status=lambda: None,
-            json=lambda: {"products": [{"title": "Produto", "handle": "produto", "variants": variants}]})
+            json=lambda: {"products": [{"title": "Produto", "handle": "produto", "variants": [dict(v, id=i) for i, v in enumerate(variants, 1)]}]})
         scope = functions("scraper.py", ["collect_products_shopify", "parse_shopify_price"], {
             "re": re, "urlparse": urlparse, "SHOPIFY_PAGE_SIZE": 250, "USER_AGENT": "Teste",
             "requests": types.SimpleNamespace(get=lambda *a, **k: response)})
@@ -22,11 +22,14 @@ class StockTests(unittest.TestCase):
             product = self.shopify([{"available": value, "price": "10"}])[0]
             self.assertIs(product["in_stock"], value if isinstance(value, bool) else None)
 
-    def test_price_and_stock_belong_to_same_selected_variant(self):
-        product = self.shopify([{"available": False, "price": "10"}, {"available": True, "price": "20"}])[0]
-        self.assertIs(product["in_stock"], True)
-        self.assertEqual(product["price"], 20)
-        product = self.shopify([{"available": False, "price": "10"}, {"price": "30"}])[0]
+    def test_price_and_stock_belong_to_each_variant(self):
+        products = self.shopify([{"available": False, "price": "10"}, {"available": True, "price": "20"}])
+        self.assertEqual(len(products), 2)
+        self.assertIs(products[0]["in_stock"], False)
+        self.assertEqual(products[0]["price"], 10)
+        self.assertIs(products[1]["in_stock"], True)
+        self.assertEqual(products[1]["price"], 20)
+        product = self.shopify([{"available": False, "price": "10"}, {"price": "30"}])[1]
         self.assertIsNone(product["in_stock"])
         self.assertEqual(product["price"], 30)
         self.assertEqual(self.shopify([]), [])

@@ -1,0 +1,5 @@
+BEGIN;
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS raw_description TEXT NOT NULL DEFAULT '';
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS raw_attributes JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE raw_scrapes ADD COLUMN IF NOT EXISTS raw_variant_options JSONB NOT NULL DEFAULT '{}'::jsonb;
+COMMIT;

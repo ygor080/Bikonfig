@@ -29,6 +29,11 @@ Para adicionar uma loja que não é Shopify:
    do produto. Se ausente, o fabricante permanece desconhecido.
    Para estoque, configure "availability" com os seletores opcionais
    "in_stock" e "out_of_stock". Sem marcador explícito, o estado é desconhecido.
+   Descrição e atributos podem ser coletados com "description" (seletor)
+   e "technical_attributes" (mapa chave/seletor). "detail_page" habilita
+   os mesmos seletores na página do produto, apenas no domínio da loja.
+   Em Shopify, body_html é coletado automaticamente; o mapa opcional
+   "technical_attribute_fields" só deve apontar para campos técnicos explícitos.
 """
 
 SITE_PROFILES = {

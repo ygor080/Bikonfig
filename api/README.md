@@ -237,3 +237,59 @@ No Shopify, o booleano `available` da variante usada para o preço fornece
 o estado. Valores ausentes, strings e números não confirmam estoque.
 Uma nova coleta sem evidência substitui a informação anterior por `null`,
 sem modificar a ativação administrativa do produto.
+
+## Identidade e variantes (etapa 12)
+
+Aplique `../database/migrations/012_identidade_variantes.sql` antes de
+publicar e recolete as fontes. O coletor Shopify registra cada variante
+com ID, SKU, título, opções, preço, estoque, imagem e link específicos.
+Os campos são expostos por `/api/products`, que exclui duplicatas,
+pendências de revisão e ofertas sem preço válido.
+
+URLs são normalizadas em `product_identity.py`, preservando parâmetros
+funcionais. Duplicidades da coleta são reduzidas antes das chamadas à IA;
+conflitos são encaminhados à revisão. O banco usa unicidade parcial por
+fonte+variante e, sem ID de variante, por fonte+URL. Há bloqueio transacional
+por identidade durante a gravação. SKU e nome não são chaves de identidade.
+
+`reconcile_product_urls` registra URLs canônicas e marca duplicatas antigas
+com `duplicate_of`, sem apagar registros, itens de configurações ou histórico.
+Identificadores explícitos de variantes distintas não são agrupados por URL.
+Um produto antigo sem variante não é convertido na primeira opção encontrada.
+
+Para HTML, seletores opcionais `sku`, `external_product_id`,
+`external_variant_id`, `variant_title` e `variant_options` (mapa opção/seletor)
+permitem coletar metadados explícitos. IDs de variante devem ser únicos por
+fonte e estáveis. Sem esses seletores, preservam-se as opções já expressas
+na URL; não se adivinham tamanho, cor ou IDs.
+
+## Contexto técnico da categorização (etapa 13)
+
+Aplique `../database/migrations/013_contexto_tecnico_coleta.sql` antes de
+executar esta versão. Nome, descrição saneada, atributos técnicos e opções
+de variante são enviados separadamente à categorização e registrados em
+`raw_scrapes`. Há limite de texto e de atributos; truncamento exige revisão.
+
+O Shopify usa `body_html` e as opções da variante. Para JSON adicional,
+`technical_attribute_fields` mapeia chaves técnicas a campos explícitos da
+fonte. Em fontes HTML, os seletores são opcionais e devem ser configurados:
+
+```python
+"description": ".product-description",
+"technical_attributes": {"aro": ".spec-wheel-size"},
+"detail_page": {
+    "description": ".description-content",
+    "technical_attributes": {"diametro_eixo": ".spec-axle"},
+},
+```
+
+`detail_page` é opt-in, só acessa a mesma origem e usa cache por URL e
+intervalo entre requisições. Falhas e conflitos entre card e detalhe não
+interrompem todos os produtos; exigem revisão do item afetado.
+
+A resposta da IA inclui `evidencias` por spec. O validador exige trecho
+presente na fonte, valor sustentado pelo trecho, tipos válidos e ausência
+de conflito com opções explícitas da variante. Specs reprovadas não entram
+na nova extração. O conteúdo do anúncio é tratado como dado, sem seguir
+instruções nele contidas. Os testes de categorização usam respostas
+simuladas, sem consumo de API, e não medem acurácia real do modelo.

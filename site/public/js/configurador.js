@@ -196,6 +196,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
                             + '" alt="' + textoSeguro(peca.nome) + '"></div>' +
                         '<h3>' + peca.nome + '</h3>' +
+                        (peca.variante_id ? '<p class="loja">Variação: ' + textoSeguro(peca.variante || 'Padrão') + '</p>' : '') +
+                        (peca.sku ? '<p class="loja">SKU: ' + textoSeguro(peca.sku) + '</p>' : '') +
                         '<p class="preco">R$ ' + peca.preco.toFixed(2) + '</p>' +
                         '<p class="fabricante">Fabricante: ' + textoSeguro(peca.fabricante || 'Não informado') + '</p>' +
                         '<p class="loja">Loja: ' + textoSeguro(peca.loja || 'Não informada') + '</p>' +

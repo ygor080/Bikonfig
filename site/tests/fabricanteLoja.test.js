@@ -59,3 +59,17 @@ test('admin valida fabricante e encaminha correção para aprovação', async ()
     await executar('x'.repeat(201));
     assert.equal(aprovados.length, 1);
 });
+
+test('consultas preservam identidade de variantes e usam link canônico na compra', async () => {
+    const { model, consultas } = modelo([
+        { id: 'm', nome: 'Quadro M', fabricante: 'Marca', loja: 'Loja', preco: 100, variante_id: '10', variante: 'M', sku: 'Q-M' },
+        { id: 'g', nome: 'Quadro G', fabricante: 'Marca', loja: 'Loja', preco: 200, variante_id: '11', variante: 'G', sku: 'Q-G' }
+    ]);
+    const produtos = await model.listarTodos('Q-M');
+    assert.equal(produtos.length, 2);
+    assert.equal(produtos[0].variante, 'M');
+    assert.equal(produtos[1].preco, 200);
+    assert.match(consultas[0].sql, /COALESCE\(p\.canonical_url, p\.product_url\) AS link/);
+    assert.match(consultas[0].sql, /p\.sku ILIKE \$1/);
+    assert.match(consultas[0].sql, /p\.duplicate_of IS NULL/);
+});
