@@ -41,7 +41,7 @@ import argparse
 import re
 import time
 import random
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlencode
 from urllib.robotparser import RobotFileParser
 
 import requests
@@ -53,6 +53,7 @@ from dotenv import load_dotenv
 import db
 from sites_config import get_profile
 from ai_categorizer import categorize_product, CONFIDENCE_THRESHOLD
+from product_identity import normalize_product_url, deduplicate_products
 
 load_dotenv()
 
@@ -156,24 +157,48 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
             variants = prod.get("variants") or []
             if not variants:
                 continue
-            variant = next((v for v in variants if v.get("available") is True),
-                           next((v for v in variants if not isinstance(v.get("available"), bool)), variants[0]))
-            in_stock = variant.get("available") if isinstance(variant.get("available"), bool) else None
-
             images = prod.get("images") or []
-            image_url = images[0]["src"] if images else None
-
-            products.append({
-                "name": (prod.get("title") or "").strip(),
-                # "vendor" pode identificar o lojista. Só usar após verificar
-                # que o campo representa o fabricante nesta fonte específica.
-                "manufacturer": prod.get(profile["manufacturer_field"]) if profile.get("manufacturer_field") else None,
-                "raw_price_text": variant.get("price") or "",
-                "price": parse_shopify_price(variant.get("price")),
-                "in_stock": in_stock,
-                "image_url": image_url,
-                "product_url": f"{base}/products/{prod.get('handle')}",
-            })
+            for variant in variants:
+                variant_id = variant.get("id")
+                if variant_id is None or isinstance(variant_id, bool) or not str(variant_id).strip():
+                    # Sem ID não é possível preservar a identidade desta opção.
+                    continue
+                variant_id = str(variant_id)
+                options = {}
+                for index, option in enumerate(prod.get("options") or [], 1):
+                    option_name = option.get("name") if isinstance(option, dict) else str(option)
+                    value = variant.get(f"option{index}")
+                    if option_name and value is not None:
+                        options[option_name] = str(value)
+                variant_title = (variant.get("title") or " / ".join(options.values())).strip()
+                default_variant = variant_title.lower() == "default title"
+                if default_variant:
+                    variant_title = ""
+                    options = {}
+                if not variant_title and not default_variant:
+                    variant_title = f"Variação {variant_id}"
+                name = (prod.get("title") or "").strip()
+                if not name or not prod.get("handle"):
+                    continue
+                image_url = next((img.get("src") for img in images
+                    if variant.get("image_id") is not None and str(img.get("id")) == str(variant["image_id"])), None)
+                image_url = image_url or (images[0].get("src") if images else None)
+                products.append({
+                    "name": name + (" — " + variant_title if variant_title else ""),
+                    "external_product_id": str(prod["id"]) if prod.get("id") is not None else None,
+                    "external_variant_id": variant_id,
+                    "sku": variant.get("sku") or None,
+                    "variant_title": variant_title or None,
+                    "variant_options": options,
+                    # "vendor" pode identificar o lojista. Só usar após verificar
+                    # que o campo representa o fabricante nesta fonte específica.
+                    "manufacturer": prod.get(profile["manufacturer_field"]) if profile.get("manufacturer_field") else None,
+                    "raw_price_text": variant.get("price") or "",
+                    "price": parse_shopify_price(variant.get("price")),
+                    "in_stock": variant.get("available") if isinstance(variant.get("available"), bool) else None,
+                    "image_url": image_url,
+                    "product_url": normalize_product_url(f"{base}/products/{prod['handle']}?{urlencode({'variant': variant_id})}"),
+                })
 
         print(f"  ...página {page}: +{len(batch)} produtos (total: {len(products)})")
 
@@ -183,7 +208,7 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
         page += 1
         time.sleep(random.uniform(0.5, 1.2))
 
-    return products
+    return deduplicate_products(products)
 
 def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
     """Coleta produtos via scraping de HTML + seletores CSS (lojas não-Shopify)."""
@@ -213,10 +238,26 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
 
         name = name_el.get_text(strip=True)
         raw_price_text = price_el.get_text(strip=True) if price_el else ""
-        product_url = urljoin(url, link_el.get("href", ""))
+        product_url = normalize_product_url(urljoin(url, link_el.get("href", "")))
         image_url = urljoin(url, image_el.get("src", "")) if image_el else None
+        metadata = {}
+        for field in ["external_product_id", "external_variant_id", "sku", "variant_title"]:
+            element = card.select_one(profile[field]) if profile.get(field) else None
+            metadata[field] = element.get_text(" ", strip=True) or None if element is not None else None
+        metadata["variant_options"] = {}
+        for option_name, selector in (profile.get("variant_options") or {}).items():
+            element = card.select_one(selector)
+            if element is not None:
+                metadata["variant_options"][option_name] = element.get_text(" ", strip=True)
+        if not metadata["variant_title"] and metadata["variant_options"]:
+            metadata["variant_title"] = " / ".join(metadata["variant_options"].values())
+        if not metadata["variant_title"] and metadata["external_variant_id"]:
+            metadata["variant_title"] = "Variação " + metadata["external_variant_id"]
+        if metadata["variant_title"]:
+            name += " — " + metadata["variant_title"]
 
         products.append({
+            **metadata,
             "name": name,
             "manufacturer": manufacturer_el.get_text(" ", strip=True) if manufacturer_el else None,
             "raw_price_text": raw_price_text,
@@ -226,7 +267,7 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
             "product_url": product_url,
         })
 
-    return products
+    return deduplicate_products(products)
 
 def scrape_and_store(url: str) -> int:
     domain = urlparse(url).netloc
@@ -252,7 +293,9 @@ def scrape_and_store(url: str) -> int:
             f"Use 'shopify' ou 'custom_html' em sites_config.py."
         )
 
-    print(f"Encontrados {len(raw_products)} produtos em {domain}")
+    raw_products = deduplicate_products(raw_products)
+    existing_conflicts = db.reconcile_product_urls(conn, source_id)
+    print(f"Encontrados {len(raw_products)} produtos/variantes em {domain}")
     saved_count = 0
 
     for item in raw_products:
@@ -266,7 +309,8 @@ def scrape_and_store(url: str) -> int:
         )
 
         ai_result = categorize_product(name)
-        needs_review = ai_result["confianca"] < CONFIDENCE_THRESHOLD
+        needs_review = (ai_result["confianca"] < CONFIDENCE_THRESHOLD
+                        or item.get("identity_conflict", False) or item["product_url"] in existing_conflicts)
 
         db.upsert_product(
             conn,
@@ -282,6 +326,11 @@ def scrape_and_store(url: str) -> int:
             is_optional=ai_result["opcional"],
             manufacturer=item.get("manufacturer"),
             in_stock=item.get("in_stock"),
+            external_product_id=item.get("external_product_id"),
+            external_variant_id=item.get("external_variant_id"),
+            sku=item.get("sku"),
+            variant_title=item.get("variant_title"),
+            variant_options=item.get("variant_options"),
         )
 
         flag = "⚠ revisar" if needs_review else "✓"
@@ -315,12 +364,13 @@ def get_products():
                 p.id,
                 p.name,
                 p.manufacturer,
+                p.external_product_id, p.external_variant_id, p.sku, p.variant_title, p.variant_options,
                 p.is_active,
                 p.in_stock,
                 p.stock_checked_at,
                 p.current_price,
                 p.image_url,
-                p.product_url,
+                COALESCE(p.canonical_url, p.product_url) AS product_url,
                 p.specs,
                 p.ai_confidence,
                 p.needs_review,
@@ -333,7 +383,7 @@ def get_products():
             JOIN sources s ON p.source_id = s.id
             LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN categories parent ON c.parent_id = parent.id
-            WHERE p.is_active = true
+            WHERE p.is_active = true AND p.duplicate_of IS NULL AND p.needs_review = false AND p.current_price > 0
             ORDER BY p.created_at DESC
         """)
         products = cur.fetchall()
@@ -345,6 +395,11 @@ def get_products():
             "id": str(p["id"]),
             "name": p["name"],
             "manufacturer": p["manufacturer"],
+            "external_product_id": p.get("external_product_id"),
+            "external_variant_id": p.get("external_variant_id"),
+            "sku": p.get("sku"),
+            "variant_title": p.get("variant_title"),
+            "variant_options": p.get("variant_options") or {},
             "is_active": p["is_active"],
             "in_stock": p["in_stock"],
             "stock_checked_at": p["stock_checked_at"].isoformat() if p["stock_checked_at"] else None,

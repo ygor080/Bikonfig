@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const codigo = fs.readFileSync(path.join(__dirname, '../public/js/configurador.js'), 'utf8');
 
-async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade, completude, fabricante = null, loja = 'Loja', emEstoque = null } = {}) {
+async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, query, montagem, indisponiveis = [], compatibilidade, completude, fabricante = null, loja = 'Loja', emEstoque = null, varianteId = null, variante = null, sku = null } = {}) {
     function elemento() {
         const classes = new Set();
         return {
@@ -32,7 +32,8 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
     elementos.configMenu.querySelectorAll = selector => selector === '.config-subitem-btn' ? [botao] : [];
     elementos.configMenu.querySelector = () => grupo;
     const chamadas = [], avisos = [];
-    const produto = { id: 'produto-1', nome: 'Produto escolhido', preco: 123, subcategoria, fabricante, loja, em_estoque: emEstoque };
+    const produto = { id: 'produto-1', nome: 'Produto escolhido', preco: 123, subcategoria, fabricante, loja, em_estoque: emEstoque,
+        variante_id: varianteId, variante, sku };
     let iniciar;
     vm.runInNewContext(codigo, {
         document: {
@@ -189,4 +190,11 @@ test('configurador distingue estoque confirmado de desconhecido', async () => {
     const desconhecido = await abrir();
     assert.match(desconhecido.elementos.configListaPecas.innerHTML, /Disponibilidade desconhecida/);
     assert.doesNotMatch(desconhecido.elementos.configListaPecas.innerHTML, /Em estoque na última coleta/);
+});
+
+test('configurador mostra a variante e SKU da opção selecionada com escape de texto', async () => {
+    const r = await abrir({ varianteId: '10', variante: 'M / Azul', sku: 'Q-M<azul>' });
+    assert.match(r.elementos.configListaPecas.innerHTML, /Variação: M \/ Azul/);
+    assert.match(r.elementos.configListaPecas.innerHTML, /SKU: Q-M&lt;azul&gt;/);
+    assert.equal(r.chamadas.find(c => c.url.endsWith('/api/configuracoes')).body.itens[0].id, 'produto-1');
 });

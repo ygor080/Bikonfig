@@ -3,14 +3,20 @@ import ast
 import json
 import re
 import types
+import sys
 import unittest
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlencode
 
 API = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(API))
+from product_identity import normalize_product_url, deduplicate_products
 
 
 def functions(filename, names, namespace):
+    namespace.setdefault('normalize_product_url', normalize_product_url)
+    namespace.setdefault('deduplicate_products', deduplicate_products)
+    namespace.setdefault('urlencode', urlencode)
     tree = ast.parse((API / filename).read_text(encoding="utf-8-sig"))
     selected = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
     for node in selected:
@@ -22,7 +28,7 @@ def functions(filename, names, namespace):
 class ManufacturerTests(unittest.TestCase):
     def shopify(self, profile=None):
         product = {"title": "Produto", "handle": "produto", "vendor": "Fabricante explícito",
-                   "variants": [{"available": True, "price": "10.00"}]}
+                   "variants": [{"id": 1, "available": True, "price": "10.00"}]}
         response = types.SimpleNamespace(status_code=200, raise_for_status=lambda: None,
                                          json=lambda: {"products": [product]})
         scope = functions("scraper.py", ["collect_products_shopify", "parse_shopify_price"], {
@@ -99,6 +105,7 @@ class ManufacturerTests(unittest.TestCase):
         saved = []
         conn = types.SimpleNamespace(close=lambda: None)
         db = types.SimpleNamespace(get_connection=lambda: conn, get_or_create_source=lambda *a: 1,
+                                   reconcile_product_urls=lambda *a: set(),
                                    save_raw_scrape=lambda *a: None, upsert_product=lambda *a, **k: saved.append(k))
         scope = functions("scraper.py", ["scrape_and_store"], {
             "urlparse": urlparse, "get_profile": lambda domain: {"platform": "shopify", "display_name": "Loja A"},

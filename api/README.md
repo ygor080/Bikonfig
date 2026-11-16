@@ -237,3 +237,28 @@ No Shopify, o booleano `available` da variante usada para o preço fornece
 o estado. Valores ausentes, strings e números não confirmam estoque.
 Uma nova coleta sem evidência substitui a informação anterior por `null`,
 sem modificar a ativação administrativa do produto.
+
+## Identidade e variantes (etapa 12)
+
+Aplique `../database/migrations/012_identidade_variantes.sql` antes de
+publicar e recolete as fontes. O coletor Shopify registra cada variante
+com ID, SKU, título, opções, preço, estoque, imagem e link específicos.
+Os campos são expostos por `/api/products`, que exclui duplicatas,
+pendências de revisão e ofertas sem preço válido.
+
+URLs são normalizadas em `product_identity.py`, preservando parâmetros
+funcionais. Duplicidades da coleta são reduzidas antes das chamadas à IA;
+conflitos são encaminhados à revisão. O banco usa unicidade parcial por
+fonte+variante e, sem ID de variante, por fonte+URL. Há bloqueio transacional
+por identidade durante a gravação. SKU e nome não são chaves de identidade.
+
+`reconcile_product_urls` registra URLs canônicas e marca duplicatas antigas
+com `duplicate_of`, sem apagar registros, itens de configurações ou histórico.
+Identificadores explícitos de variantes distintas não são agrupados por URL.
+Um produto antigo sem variante não é convertido na primeira opção encontrada.
+
+Para HTML, seletores opcionais `sku`, `external_product_id`,
+`external_variant_id`, `variant_title` e `variant_options` (mapa opção/seletor)
+permitem coletar metadados explícitos. IDs de variante devem ser únicos por
+fonte e estáveis. Sem esses seletores, preservam-se as opções já expressas
+na URL; não se adivinham tamanho, cor ou IDs.

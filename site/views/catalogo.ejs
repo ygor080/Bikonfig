@@ -105,6 +105,8 @@
                             <img src="<%= produtos[i].imagem || produtos[i].imagemFallback %>" data-imagem-fallback="<%= produtos[i].imagemFallback %>" alt="<%= produtos[i].nome %>">
                         </div>
                         <h3><%= produtos[i].nome %></h3>
+                        <% if (produtos[i].variante_id) { %><p class="loja">Variação: <%= produtos[i].variante || 'Padrão' %></p><% } %>
+                        <% if (produtos[i].sku) { %><p class="loja">SKU: <%= produtos[i].sku %></p><% } %>
                         <p class="preco">R$ <%= produtos[i].preco.toFixed(2) %></p>
                         <p class="fabricante">Fabricante: <%= produtos[i].fabricante || 'Não informado' %></p>
                         <p class="loja">Loja: <%= produtos[i].loja %></p>

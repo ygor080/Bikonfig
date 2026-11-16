@@ -75,7 +75,8 @@ completo. Para bases existentes, as alterações incrementais ficam em
 `database/migrations/`; aplique as migrações correspondentes antes de
 publicar: `008_tipo_montagem.sql` (etapa 8) e
 `009_fabricante_produto.sql` (etapa 9) e
-`010_disponibilidade_estoque.sql` (etapa 10).
+`010_disponibilidade_estoque.sql` (etapa 10) e
+`012_identidade_variantes.sql` (etapa 12). A etapa 11 não exige migração.
 
 A coluna `is_admin` (controla o acesso à tela de revisão de produtos) só é
 alterada com `UPDATE` direto no banco — não existe nenhum jeito de virar
@@ -119,6 +120,44 @@ novas regras.
 
 ## Front-end
 
+### Identidade, duplicidades e variantes (etapa 12)
+
+Antes de publicar site e API, aplique a migração transacional
+`database/migrations/012_identidade_variantes.sql` e execute uma nova
+coleta. Não houve alteração do banco de produção durante o desenvolvimento.
+
+Cada variante Shopify possui um registro próprio, com identificadores
+externos de produto e variante, SKU, título e opções, preço, estoque e
+imagem correspondente. O link inclui `?variant=<id>` para abrir a mesma
+opção na loja, conforme o [padrão Shopify](https://shopify.dev/docs/storefronts/themes/product-merchandising/variants).
+As opções aparecem como ofertas distintas no catálogo/configurador.
+O nome persistido inclui a variação para identificá-la também no resumo,
+nas configurações salvas e no PDF. A busca aceita SKU. A coleta ignora
+variantes sem ID estável, sem inventar uma identidade pelo preço ou título.
+
+Em HTML, é possível configurar seletores opcionais `external_product_id`,
+`external_variant_id`, `sku`, `variant_title` e `variant_options` (mapa de
+nomes de opções para seletores). O identificador de variante configurado
+precisa ser estável e único por loja; rótulos como "M" não servem como ID.
+Sem identificador explícito, a identidade usa a URL, mantendo parâmetros
+funcionais como tamanho, cor e variante. A coleta de páginas que dependem
+de seleção interativa requer configuração própria da fonte.
+
+Normalizam-se protocolo/domínio e removem-se fragmentos e parâmetros
+conhecidos de rastreamento (`utm_*`, `gclid`, `fbclid`, `msclkid`, `dclid`).
+Não se remove a consulta inteira, não se altera caixa do caminho e não
+se juntam ofertas apenas por nome, SKU ou fabricante iguais. A unicidade
+é por fonte+ID de variante; sem variante explícita, por fonte+URL.
+Variantes identificadas podem compartilhar uma página sem colidir na base.
+
+Listagens repetidas são deduplicadas antes da categorização. Valores
+contraditórios para a mesma identidade entram em revisão. Na recoleta,
+URLs antigas são reconciliadas por fonte; duplicatas recebem `duplicate_of`
+e ficam fora da seleção, sem exclusão dos registros, montagens ou histórico.
+Ofertas antigas sem variante que passaram a ter opções explícitas vão
+para revisão, sem atribuir uma opção arbitrária a uma montagem salva.
+O controle de revisão não resolve conflitos de identidade automaticamente.
+
 ### Imagens externas com falha (etapa 11)
 
 Catálogo, cartões e resumo do configurador e revisão administrativa usam
@@ -153,11 +192,10 @@ itens indisponíveis da etapa 3. A interface usa os rótulos "Em estoque na
 última coleta", "Sem estoque na última coleta" e "Disponibilidade
 desconhecida", e mostra a data da consulta quando registrada.
 
-No Shopify, estoque e preço vêm da mesma variante representativa: prefere
-uma com `available: true`; sem ela, prefere uma de disponibilidade
-desconhecida antes de escolher uma explicitamente esgotada. Apenas
-booleanos são aceitos como confirmação. Isso não implementa escolha de
-tamanho/variante pelo usuário, prevista para a evolução do catálogo.
+No Shopify, estoque e preço vêm da mesma variante. A partir da etapa 12,
+todas as variantes identificadas são coletadas individualmente, em vez
+de selecionar uma representante do produto. Apenas booleanos são aceitos
+como confirmação de estoque.
 
 Em HTML, o perfil pode declarar `availability` com seletores `in_stock`
 e `out_of_stock`. Ausência ou presença simultânea dos marcadores resulta
