@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qualidade do catálogo - Bikonfig</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <header class="cabecalho"><div class="container"><a href="/" class="logo">Bikonfig</a>
+        <nav aria-label="Administração"><a href="/admin/revisao">Revisão</a> · <a href="/admin/coletas">Coletas</a> · <a href="/home">Home</a></nav>
+    </div></header>
+    <main class="container">
+        <div class="catalogo-header"><h1>Qualidade do catálogo</h1>
+            <p>Diagnóstico para revisão manual. Nenhum produto é corrigido ou unido automaticamente.</p></div>
+        <section class="admin-card" aria-label="Contagens do banco">
+            <p>Total: <%= totais.total %> · Sem categoria: <%= totais.sem_categoria %> · Aguardando revisão: <%= totais.revisar %> · Vinculados como duplicata: <%= totais.duplicados %>.</p>
+            <p><%= amostrados %> registros analisados (limite de 500). Detalhes abaixo cobrem somente essa amostra, priorizando falta de categoria e revisão pendente.</p>
+            <p>As especificações a conferir vêm das regras cadastradas. Ausência de alerta não certifica compatibilidade completa.</p>
+        </section>
+        <% if (!pendentes.length) { %><p class="catalogo-vazio">Nenhuma pendência encontrada nas verificações da amostra.</p><% } %>
+        <div class="admin-lista">
+            <% pendentes.forEach(function (p) { %>
+                <article class="admin-card">
+                    <h2 class="admin-card__nome"><%= p.nome %></h2>
+                    <p><%= p.loja %> · Categoria: <%= p.categoria || 'Sem categoria' %> · <%= p.ativo ? 'Ativo' : 'Inativo' %></p>
+                    <p>Variante: <%= p.external_variant_id || 'Sem ID externo' %> · <%= p.variant_title || 'Sem descrição' %> · SKU: <%= p.sku || 'Não informado' %></p>
+                    <ul><% p.pendencias.forEach(function (mensagem) { %><li><%= mensagem %></li><% }); %></ul>
+                    <a href="/admin/revisao/<%= p.id %>" class="btn-secundario">Revisar este produto</a>
+                </article>
+            <% }); %>
+        </div>
+    </main>
+</body>
+</html>

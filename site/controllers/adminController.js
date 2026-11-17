@@ -6,13 +6,19 @@ function parseSpecsTexto(texto) {
     const specs = Object.create(null);
     texto.split('\n').forEach(linha => {
         const separador = linha.indexOf(':');
-        if (separador === -1) return;
+        if (!linha.trim()) return;
+        if (separador === -1) throw new Error('Use uma especificação por linha no formato chave: valor.');
 
         const chave = linha.slice(0, separador).trim();
         const valor = linha.slice(separador + 1).trim();
+        if (!/^[a-z][a-z0-9_]{0,79}$/.test(chave) || ['constructor', 'prototype', '__proto__'].includes(chave)
+            || !valor || Object.hasOwn(specs, chave)) throw new Error('Há uma chave inválida, repetida ou sem valor.');
         if (chave && valor) {
             try { specs[chave] = JSON.parse(valor); }
-            catch { specs[chave] = valor; }
+            catch {
+                if (/^[\[{\"]/.test(valor)) throw new Error('Há um valor JSON incompleto.');
+                specs[chave] = valor;
+            }
         }
     });
     return specs;
@@ -26,9 +32,12 @@ function specsParaTexto(specs) {
 const adminController = {
     exibirRevisao: async (req, res) => {
         const [produtos, categorias] = await Promise.all([
-            ProdutoModel.listarParaRevisao(),
+            ProdutoModel.listarParaRevisao(req.params?.id),
             ProdutoModel.listarCategoriasFlat()
         ]);
+        if (req.params?.id && !produtos.length) return res.status(404).render('erro', {
+            usuario: req.session.user, titulo: 'Produto não encontrado', mensagem: 'Produto não encontrado.'
+        });
 
         const produtosComTexto = produtos.map(p => ({
             ...p,
@@ -54,12 +63,16 @@ const adminController = {
             return res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Escolha uma categoria antes de aprovar.'));
         }
 
-        await ProdutoModel.aprovarProduto(id, {
+        let specs;
+        try { specs = parseSpecsTexto(specsTexto); }
+        catch (erro) { return res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Especificações inválidas. ' + erro.message)); }
+        const aprovado = await ProdutoModel.aprovarProduto(id, {
             categoriaSlug: categoria,
-            specs: parseSpecsTexto(specsTexto),
+            specs,
             fabricante,
             revisadoPor: req.session?.user?.id
         });
+        if (aprovado === false) return res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Produto ou categoria não encontrado, ou produto vinculado como duplicata. Nenhuma aprovação realizada.'));
 
         res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Produto aprovado.'));
     },
@@ -67,7 +80,7 @@ const adminController = {
     rejeitarProduto: async (req, res) => {
         const { id } = req.params;
         await ProdutoModel.rejeitarProduto(id);
-        res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Produto rejeitado e removido.'));
+        res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Produto rejeitado e desativado. Montagens e histórico foram preservados.'));
     }
 };
 

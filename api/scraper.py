@@ -445,7 +445,7 @@ def get_products():
             JOIN sources s ON p.source_id = s.id
             LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN categories parent ON c.parent_id = parent.id
-            WHERE p.is_active = true AND p.duplicate_of IS NULL AND p.needs_review = false AND p.current_price > 0
+            WHERE p.is_active = true AND p.duplicate_of IS NULL AND p.needs_review = false AND p.category_id IS NOT NULL AND p.current_price > 0
             ORDER BY p.created_at DESC
         """)
         products = cur.fetchall()

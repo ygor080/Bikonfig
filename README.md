@@ -458,6 +458,23 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Qualidade do catálogo e revisão de aprovados (etapa 26)
+
+Administradores podem acessar `/admin/qualidade` para localizar falta de
+categoria, especificações a conferir, detalhes de variantes e possíveis
+identidades repetidas, sem mesclar registros automaticamente. A revisão
+individual agora aceita também produtos já aprovados.
+
+A aprovação exige categoria existente, rejeita especificações malformadas
+e não libera um registro vinculado como duplicata. Produtos sem categoria
+ficam fora da oferta pública. Rejeitar passa a desativar o produto,
+preservando montagens e histórico de preços.
+
+O diagnóstico de leitura encontrou 96 registros com alguma pendência entre
+460 analisados; eles não foram corrigidos automaticamente no banco real.
+Consulte [docs/qualidade-catalogo.md](docs/qualidade-catalogo.md) para contagens,
+critérios e limites. Sem migração ou configuração nova.
+
 ### Operação e acompanhamento da coleta (etapa 25)
 
 O workflow de coleta agora oferece uma prévia manual sem IA/banco antes da

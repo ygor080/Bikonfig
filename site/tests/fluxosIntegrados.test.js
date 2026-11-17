@@ -215,6 +215,30 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.ok(!html.includes('<img src=x'));
         assert.match(html, /1 produtos\/variantes ativos consultados/);
     });
+    await t.test('qualidade permite revisar aprovados e impede categoria inexistente e specs malformadas', async () => {
+        const semCategoria = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+        await db.query(`INSERT INTO products (id, source_id, name, product_url, current_price, needs_review)
+            VALUES ($1, (SELECT id FROM sources LIMIT 1), '<img src=x onerror=alert(1)>', 'https://loja.test/sem-categoria', 10, false)`, [semCategoria]);
+        assert.equal((await outro.pedir('/admin/qualidade')).status, 403);
+        const qualidade = await admin.pedir('/admin/qualidade'); assert.equal(qualidade.status, 200);
+        const html = await qualidade.text(); assert.match(html, /Sem categoria/); assert.ok(html.includes('&lt;img'));
+        const catalogo = await (await dono.pedir('/catalogo')).text(); assert.ok(!catalogo.includes('/sem-categoria'));
+        assert.equal((await admin.pedir('/admin/revisao/' + quadro)).status, 200);
+        assert.equal((await admin.pedir('/admin/revisao/ffffffff-ffff-ffff-ffff-ffffffffffff')).status, 404);
+        const corpo = { categoria: 'categoria-inexistente', fabricante: 'Marca', specsTexto: 'aro: 29' };
+        await admin.pedir('/admin/revisao/' + semCategoria + '/aprovar', corpo);
+        assert.equal((await db.query('SELECT category_id FROM products WHERE id = $1', [semCategoria])).rows[0].category_id, null);
+        for (const specsTexto of ['linha sem separador', 'aro: 29\naro: 26', 'aro:', 'aro: [29']) {
+            const resposta = await admin.pedir('/admin/revisao/' + semCategoria + '/aprovar', { ...corpo, categoria: 'quadro', specsTexto });
+            assert.ok(decodeURIComponent(resposta.headers.get('location')).includes('Especificações inválidas'));
+            assert.equal((await db.query('SELECT category_id FROM products WHERE id = $1', [semCategoria])).rows[0].category_id, null);
+        }
+        await admin.pedir('/admin/revisao/' + semCategoria + '/aprovar', { ...corpo, categoria: 'quadro' });
+        assert.ok((await db.query('SELECT category_id FROM products WHERE id = $1', [semCategoria])).rows[0].category_id);
+        await db.query('UPDATE products SET duplicate_of = $1 WHERE id = $2', [quadro, semCategoria]);
+        const duplicata = await admin.pedir('/admin/revisao/' + semCategoria + '/aprovar', { ...corpo, categoria: 'pneus' });
+        assert.ok(decodeURIComponent(duplicata.headers.get('location')).includes('duplicata'));
+    });
     await t.test('ações reais sem CSRF são rejeitadas e formulários incluem token da sessão', async () => {
         for (const caminho of ['/login', '/cadastro', '/logout', '/catalogo/api/orcamento', '/catalogo/api/pdf',
             '/catalogo/api/configuracoes', '/catalogo/api/configuracoes/' + montagem,
@@ -240,5 +264,17 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         await dono.pedir('/catalogo/api/configuracoes/' + montagem + '/excluir', {});
         assert.equal((await dono.pedir('/catalogo/api/configuracoes/' + montagem)).status, 404);
         assert.equal(Number((await db.query('SELECT COUNT(*) FROM configuracao_itens')).rows[0].count), 0);
+    });
+    await t.test('rejeitar desativa oferta preservando montagem, item e histórico de preços', async () => {
+        const Model = require('../models/configuracaoModel');
+        const donoId = (await db.query("SELECT id FROM usuarios WHERE nome = 'dono'")).rows[0].id;
+        const salva = await Model.salvar(donoId, 'Preservar', [{ id: quadro }]);
+        await db.query('INSERT INTO price_history (product_id, price) VALUES ($1, 500)', [quadro]);
+        await admin.pedir('/admin/revisao/' + quadro + '/rejeitar', {});
+        assert.equal((await db.query('SELECT is_active FROM products WHERE id = $1', [quadro])).rows[0].is_active, false);
+        assert.equal((await Model.listarItens(salva.id)).length, 1);
+        assert.equal((await db.query('SELECT COUNT(*) FROM price_history WHERE product_id = $1', [quadro])).rows[0].count, 1);
+        const aberta = await (await dono.pedir('/catalogo/api/configuracoes/' + salva.id)).json();
+        assert.equal(aberta.indisponiveis[0].id, quadro);
     });
 });

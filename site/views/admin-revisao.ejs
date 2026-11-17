@@ -32,8 +32,9 @@
     <main class="container">
         <div class="catalogo-header">
             <h1>Revisão de produtos</h1>
+            <p><a href="/admin/qualidade">Ver pendências de qualidade de todo o catálogo</a></p>
             <p><a href="/admin/coletas">Acompanhar coletas e atualização dos preços</a></p>
-            <p><%= produtos.length %> produto<%= produtos.length === 1 ? '' : 's' %> aguardando revisão -- eles não aparecem no catálogo/configurador do cliente até serem aprovados aqui.</p>
+            <p><%= produtos.length %> produto<%= produtos.length === 1 ? '' : 's' %> para conferir nesta página. A revisão pode incluir produtos já aprovados.</p>
         </div>
 
         <% if (mensagem) { %>
@@ -119,13 +120,13 @@
                             </label>
 
                             <div class="admin-card__acoes">
-                                <button type="submit" class="btn-principal">Aprovar</button>
+                                <button type="submit" class="btn-principal" <%= p.duplicate_of ? 'disabled' : '' %>>Salvar revisão</button>
                             </div>
                         </form>
 
-                        <form method="POST" action="/admin/revisao/<%= p.id %>/rejeitar" class="admin-card__rejeitar js-form-confirmar" data-confirmar-titulo="Rejeitar produto" data-confirmar-mensagem="Rejeitar e excluir este produto? Essa ação não pode ser desfeita.">
+                        <form method="POST" action="/admin/revisao/<%= p.id %>/rejeitar" class="admin-card__rejeitar js-form-confirmar" data-confirmar-titulo="Desativar produto" data-confirmar-mensagem="Retirar este produto do catálogo? As montagens e o histórico serão preservados.">
                             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                            <button type="submit" class="btn-secundario admin-btn-rejeitar">Rejeitar / excluir</button>
+                            <button type="submit" class="btn-secundario admin-btn-rejeitar">Rejeitar / desativar</button>
                         </form>
                     </div>
                 <% }); %>

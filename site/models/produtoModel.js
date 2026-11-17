@@ -208,7 +208,7 @@ class ProdutoModel {
         return rows.map(normalizarProduto);
     }
 
-    static async listarParaRevisao() {
+    static async listarParaRevisao(id = null) {
         const { rows } = await pool.query(`
             SELECT
                 p.id, p.name AS nome, COALESCE(p.canonical_url, p.product_url) AS product_url, p.image_url AS imagem,
@@ -223,9 +223,9 @@ class ProdutoModel {
             FROM products p
             JOIN sources s ON s.id = p.source_id
             LEFT JOIN categories c ON c.id = p.category_id
-            WHERE p.needs_review = true
+            WHERE ${id ? 'p.id = $1' : 'p.needs_review = true'}
             ORDER BY p.ai_confidence ASC NULLS FIRST, p.created_at DESC
-        `);
+        `, id ? [id] : []);
         return rows.map(p => ({ ...p, imagemFallback: imagemPadrao(p), imagem: urlImagemSegura(p.imagem, imagemPadrao(p)),
             product_url: urlExternaSegura(p.product_url), preco: Number(p.preco) }));
     }
@@ -271,14 +271,17 @@ class ProdutoModel {
             indice++;
         }
         valores.push(id);
-        await pool.query(
-            `UPDATE products SET ${campos.join(', ')}, updated_at = now() WHERE id = $${indice}`,
+        const resultado = await pool.query(
+            `UPDATE products SET ${campos.join(', ')}, updated_at = now() WHERE id = $${indice}
+             AND duplicate_of IS NULL
+             ${categoriaSlug ? 'AND EXISTS (SELECT 1 FROM categories WHERE slug = $1)' : ''} RETURNING id`,
             valores
         );
+        return resultado?.rowCount > 0;
     }
 
     static async rejeitarProduto(id) {
-        await pool.query('DELETE FROM products WHERE id = $1', [id]);
+        await pool.query('UPDATE products SET is_active = false, needs_review = false, updated_at = now() WHERE id = $1', [id]);
     }
 
     static async verificarCompatibilidade(pecasSelecionadas) {
