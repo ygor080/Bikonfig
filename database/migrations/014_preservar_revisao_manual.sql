@@ -1,0 +1,7 @@
+BEGIN;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS category_manually_reviewed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS specs_manually_reviewed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS manufacturer_manually_reviewed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS manual_reviewed_at TIMESTAMPTZ;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS manual_reviewed_by UUID REFERENCES usuarios(id) ON DELETE SET NULL;
+COMMIT;

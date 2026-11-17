@@ -8,7 +8,11 @@ const CAMPOS_PRODUTO = `
     COALESCE(p.current_price, 0) AS preco,
     NULLIF(BTRIM(p.manufacturer), '') AS fabricante,
     s.name AS loja,
-    p.product_url AS link,
+    COALESCE(p.canonical_url, p.product_url) AS link,
+    p.external_variant_id AS variante_id,
+    p.variant_title AS variante,
+    p.variant_options AS opcoes_variante,
+    p.sku,
     NULLIF(p.specs->>'aro', '') AS aro,
     p.specs AS specs,
     p.is_optional AS opcional,
@@ -178,7 +182,7 @@ class ProdutoModel {
         const { rows } = await pool.query(
             `SELECT ${CAMPOS_PRODUTO} ${FROM_PRODUTO}
              WHERE ${PRODUTO_PUBLICAVEL_SQL}
-             AND ($1::text IS NULL OR p.name ILIKE $1 OR p.manufacturer ILIKE $1 OR s.name ILIKE $1)
+             AND ($1::text IS NULL OR p.name ILIKE $1 OR p.manufacturer ILIKE $1 OR s.name ILIKE $1 OR p.sku ILIKE $1)
              ORDER BY ${ORDEM_PRIORIDADE_SQL}, p.name`,
             [termo]
         );
@@ -203,7 +207,10 @@ class ProdutoModel {
     static async listarParaRevisao() {
         const { rows } = await pool.query(`
             SELECT
-                p.id, p.name AS nome, p.product_url, p.image_url AS imagem,
+                p.id, p.name AS nome, COALESCE(p.canonical_url, p.product_url) AS product_url, p.image_url AS imagem,
+                p.external_variant_id AS variante_id, p.variant_title AS variante, p.variant_options AS opcoes_variante, p.sku,
+                p.duplicate_of,
+                p.category_manually_reviewed, p.specs_manually_reviewed, p.manufacturer_manually_reviewed, p.manual_reviewed_at,
                 COALESCE(p.current_price, 0) AS preco,
                 NULLIF(BTRIM(p.manufacturer), '') AS fabricante, s.name AS loja,
                 p.is_active AS ativo, p.in_stock AS em_estoque, p.stock_checked_at AS estoque_verificado_em,
@@ -228,28 +235,36 @@ class ProdutoModel {
         return rows;
     }
 
-    static async aprovarProduto(id, { categoriaSlug, specs, fabricante } = {}) {
-        const campos = ['needs_review = false'];
+    static async aprovarProduto(id, { categoriaSlug, specs, fabricante, revisadoPor } = {}) {
+        const campos = ['needs_review = false', 'manual_reviewed_at = now()'];
         const valores = [];
         let indice = 1;
 
         if (categoriaSlug) {
+            campos.push('category_manually_reviewed = true');
             campos.push(`category_id = (SELECT id FROM categories WHERE slug = $${indice})`);
             valores.push(categoriaSlug);
             indice++;
         }
         if (specs) {
+            campos.push('specs_manually_reviewed = true');
             campos.push(`specs = $${indice}::jsonb`);
             valores.push(JSON.stringify(specs));
             indice++;
         }
 
         if (fabricante !== undefined) {
+            campos.push('manufacturer_manually_reviewed = true');
             campos.push(`manufacturer = $${indice}`);
             valores.push(fabricante && fabricante.trim() || null);
             indice++;
         }
 
+        if (revisadoPor) {
+            campos.push(`manual_reviewed_by = $${indice}`);
+            valores.push(revisadoPor);
+            indice++;
+        }
         valores.push(id);
         await pool.query(
             `UPDATE products SET ${campos.join(', ')}, updated_at = now() WHERE id = $${indice}`,

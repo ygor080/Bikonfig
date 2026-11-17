@@ -57,6 +57,15 @@
                             <img class="admin-card__imagem" src="<%= p.imagem || p.imagemFallback %>" data-imagem-fallback="<%= p.imagemFallback %>" alt="<%= p.nome %>">
                             <div class="admin-card__info">
                                 <a href="<%= p.product_url %>" target="_blank" rel="noopener noreferrer" class="admin-card__nome"><%= p.nome %></a>
+                                <% if (p.variante_id) { %><p class="admin-card__meta">Variação: <%= p.variante || 'Padrão' %> · ID: <%= p.variante_id %></p><% } %>
+                                <% if (p.sku) { %><p class="admin-card__meta">SKU: <%= p.sku %></p><% } %>
+                                <% if (p.manual_reviewed_at) { %>
+                                    <p class="admin-card__meta">Revisão manual registrada. Campos protegidos:
+                                        <%= [p.category_manually_reviewed ? 'categoria' : null, p.specs_manually_reviewed ? 'especificações' : null, p.manufacturer_manually_reviewed ? 'fabricante' : null].filter(Boolean).join(', ') || 'nenhum' %>.
+                                        A coleta continua atualizando preço, estoque e dados da oferta.
+                                    </p>
+                                <% } %>
+                                <% if (p.duplicate_of) { %><p class="admin-card__meta">Possível duplicata do produto <%= p.duplicate_of %>. Este registro não é oferecido para seleção; seus vínculos e histórico foram preservados.</p><% } %>
                                 <p class="admin-card__meta">
                                     Loja: <%= p.loja %> · R$ <%= p.preco.toFixed(2) %>
                                     · Estoque: <%= p.em_estoque === true ? 'disponível na última coleta' : p.em_estoque === false ? 'indisponível na última coleta' : 'desconhecido' %>
@@ -64,8 +73,8 @@
                                     <% if (p.opcional) { %> · <span class="tag-opcional">opcional</span><% } %>
                                 </p>
                                 <p class="admin-card__meta">
-                                    Categoria da IA: <strong><%= p.categoria_atual_nome || '(nenhuma)' %></strong>
-                                    · Confiança:
+                                    <%= p.category_manually_reviewed ? 'Categoria revisada' : 'Categoria da IA' %>: <strong><%= p.categoria_atual_nome || '(nenhuma)' %></strong>
+                                    · Confiança da última coleta:
                                     <strong class="<%= (p.confianca ?? 0) < 0.5 ? 'admin-confianca--baixa' : 'admin-confianca--media' %>">
                                         <%= p.confianca !== null ? Math.round(p.confianca * 100) + '%' : '—' %>
                                     </strong>

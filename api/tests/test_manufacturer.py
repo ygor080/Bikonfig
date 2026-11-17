@@ -3,14 +3,24 @@ import ast
 import json
 import re
 import types
+import sys
 import unittest
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlencode
 
 API = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(API))
+from product_identity import normalize_product_url, deduplicate_products
+from product_context import prepare_product_context
+from spec_evidence import validate_categorization
 
 
 def functions(filename, names, namespace):
+    namespace.setdefault('normalize_product_url', normalize_product_url)
+    namespace.setdefault('deduplicate_products', deduplicate_products)
+    namespace.setdefault('urlencode', urlencode)
+    namespace.setdefault('prepare_product_context', prepare_product_context)
+    namespace.setdefault('validate_categorization', validate_categorization)
     tree = ast.parse((API / filename).read_text(encoding="utf-8-sig"))
     selected = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
     for node in selected:
@@ -22,7 +32,7 @@ def functions(filename, names, namespace):
 class ManufacturerTests(unittest.TestCase):
     def shopify(self, profile=None):
         product = {"title": "Produto", "handle": "produto", "vendor": "Fabricante explícito",
-                   "variants": [{"available": True, "price": "10.00"}]}
+                   "variants": [{"id": 1, "available": True, "price": "10.00"}]}
         response = types.SimpleNamespace(status_code=200, raise_for_status=lambda: None,
                                          json=lambda: {"products": [product]})
         scope = functions("scraper.py", ["collect_products_shopify", "parse_shopify_price"], {
@@ -92,20 +102,21 @@ class ManufacturerTests(unittest.TestCase):
         for value in [None, "  ", {"invalid": True}]:
             queries = self.save(value, {"id": "product", "current_price": 10})
             sql, params = next(q for q in queries if "UPDATE products" in q[0])
-            self.assertIn("manufacturer = COALESCE(%s, manufacturer)", sql)
+            self.assertIn("ELSE COALESCE(%s, manufacturer) END", sql)
             self.assertIsNone(params[-2])
 
     def test_pipeline_passes_explicit_manufacturer_to_database(self):
         saved = []
         conn = types.SimpleNamespace(close=lambda: None)
         db = types.SimpleNamespace(get_connection=lambda: conn, get_or_create_source=lambda *a: 1,
-                                   save_raw_scrape=lambda *a: None, upsert_product=lambda *a, **k: saved.append(k))
+                                   reconcile_product_urls=lambda *a: set(),
+                                   save_raw_scrape=lambda *a, **k: None, upsert_product=lambda *a, **k: saved.append(k))
         scope = functions("scraper.py", ["scrape_and_store"], {
             "urlparse": urlparse, "get_profile": lambda domain: {"platform": "shopify", "display_name": "Loja A"},
             "robots_allows": lambda _: True, "db": db,
             "collect_products_shopify": lambda *a: [{"name": "Produto", "product_url": "https://loja.test/p",
                 "raw_price_text": "10", "image_url": None, "price": 10, "manufacturer": "Fabricante A", "in_stock": False}],
-            "categorize_product": lambda _: {"categoria": "quadro", "confianca": 1, "specs": {}, "opcional": False},
+            "categorize_product": lambda *a, **k: {"categoria": "quadro", "confianca": 1, "specs": {}, "opcional": False},
             "CONFIDENCE_THRESHOLD": 0.7, "time": types.SimpleNamespace(sleep=lambda _: None)})
         self.assertEqual(scope["scrape_and_store"]("https://loja.test/collections/pecas"), 1)
         self.assertEqual(saved[0]["manufacturer"], "Fabricante A")

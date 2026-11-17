@@ -3,21 +3,24 @@ const ProdutoModel = require('../models/produtoModel');
 function parseSpecsTexto(texto) {
     if (typeof texto !== 'string' || !texto.trim()) return {};
 
-    const specs = {};
+    const specs = Object.create(null);
     texto.split('\n').forEach(linha => {
         const separador = linha.indexOf(':');
         if (separador === -1) return;
 
         const chave = linha.slice(0, separador).trim();
         const valor = linha.slice(separador + 1).trim();
-        if (chave && valor) specs[chave] = valor;
+        if (chave && valor) {
+            try { specs[chave] = JSON.parse(valor); }
+            catch { specs[chave] = valor; }
+        }
     });
     return specs;
 }
 
 function specsParaTexto(specs) {
     if (!specs || typeof specs !== 'object') return '';
-    return Object.entries(specs).map(([chave, valor]) => `${chave}: ${valor}`).join('\n');
+    return Object.entries(specs).map(([chave, valor]) => `${chave}: ${JSON.stringify(valor)}`).join('\n');
 }
 
 const adminController = {
@@ -54,7 +57,8 @@ const adminController = {
         await ProdutoModel.aprovarProduto(id, {
             categoriaSlug: categoria,
             specs: parseSpecsTexto(specsTexto),
-            fabricante
+            fabricante,
+            revisadoPor: req.session?.user?.id
         });
 
         res.redirect('/admin/revisao?mensagem=' + encodeURIComponent('Produto aprovado.'));

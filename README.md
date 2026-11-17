@@ -75,7 +75,10 @@ completo. Para bases existentes, as alterações incrementais ficam em
 `database/migrations/`; aplique as migrações correspondentes antes de
 publicar: `008_tipo_montagem.sql` (etapa 8) e
 `009_fabricante_produto.sql` (etapa 9) e
-`010_disponibilidade_estoque.sql` (etapa 10).
+`010_disponibilidade_estoque.sql` (etapa 10) e
+`012_identidade_variantes.sql` (etapa 12) e
+`013_contexto_tecnico_coleta.sql` (etapa 13) e
+`014_preservar_revisao_manual.sql` (etapa 14). A etapa 11 não exige migração.
 
 A coluna `is_admin` (controla o acesso à tela de revisão de produtos) só é
 alterada com `UPDATE` direto no banco — não existe nenhum jeito de virar
@@ -119,6 +122,101 @@ novas regras.
 
 ## Front-end
 
+### Preservação da revisão administrativa (etapa 14)
+
+Aplique `database/migrations/014_preservar_revisao_manual.sql` antes de
+publicar esta versão do site e da coleta. Uma aprovação registra data,
+administrador e quais campos foram revisados: categoria, especificações
+e fabricante. Somente os campos efetivamente enviados recebem proteção.
+Uma edição posterior por administrador continua permitida.
+
+A recoleta protege esses campos no próprio `UPDATE`, sem depender de uma
+cópia anterior lida em Python. Assim, uma aprovação concorrente também é
+respeitada. Limpar o fabricante ou deixar as especificações vazias são
+correções válidas e ficam protegidas contra preenchimento automático.
+Valores booleanos, numéricos, listas e objetos das specs preservam o tipo
+ao passar pelo formulário; texto sem formato JSON continua aceito.
+
+Preço, estoque, imagem, nome da oferta, metadados de variante e histórico
+continuam sendo atualizados. Uma revisão completa não perde a aprovação
+apenas por baixa confiança da IA ou por specs que a nova extração deixou
+de trazer. Conflitos de identidade/duplicidade ainda podem devolver o
+item à fila, mantendo os valores corrigidos. A interface distingue a
+categoria revisada da confiança da última coleta.
+
+**Revisões anteriores à migração não são inferidas por `needs_review=false`**,
+pois esse estado também pode vir da IA. Para proteger correções antigas,
+encaminhe apenas os produtos conhecidos à revisão e confirme-os novamente
+com esta versão. Não há marcação automática de todos os produtos aprovados
+como revisados por uma pessoa. O banco de produção não foi modificado no
+desenvolvimento desta etapa.
+
+### Descrições, atributos e evidências (etapa 13)
+
+Antes de usar esta versão da coleta, aplique
+`database/migrations/013_contexto_tecnico_coleta.sql`. Ela acrescenta a
+`raw_scrapes` os campos `raw_description`, `raw_attributes` e
+`raw_variant_options`, para registrar o contexto usado na categorização.
+Não foi executada no banco de produção durante o desenvolvimento.
+
+No Shopify, a descrição vem de `body_html`, com remoção de marcação,
+scripts e estilos. As opções da variante selecionada acompanham cada
+registro. `technical_attribute_fields` pode mapear chaves técnicas a
+campos explícitos do JSON da fonte; não se deduzem medidas de tags genéricas.
+
+Em HTML, configure `description` e `technical_attributes` no perfil. A
+configuração opcional `detail_page` usa esses mesmos seletores na página
+do produto, com intervalo entre requisições e cache por URL durante a
+coleta. Somente a mesma origem (protocolo, domínio e porta) é consultada.
+Falhas de detalhe e dados truncados encaminham o produto à revisão.
+
+O modelo recebe nome, descrição saneada, atributos e opções em JSON.
+Cada especificação retornada precisa ter uma evidência literal da fonte,
+incluindo o valor extraído. Valores sem evidência, resultados inválidos
+ou divergências em relação a atributos/opções explícitos são removidos
+da extração e reduzem a confiança para revisão. A validação textual não
+certifica a correção técnica; precisão real depende de avaliação com
+produtos rotulados. Especificações antigas ausentes na nova extração
+também impedem aprovação automática, sem apagá-las silenciosamente.
+
+### Identidade, duplicidades e variantes (etapa 12)
+
+Antes de publicar site e API, aplique a migração transacional
+`database/migrations/012_identidade_variantes.sql` e execute uma nova
+coleta. Não houve alteração do banco de produção durante o desenvolvimento.
+
+Cada variante Shopify possui um registro próprio, com identificadores
+externos de produto e variante, SKU, título e opções, preço, estoque e
+imagem correspondente. O link inclui `?variant=<id>` para abrir a mesma
+opção na loja, conforme o [padrão Shopify](https://shopify.dev/docs/storefronts/themes/product-merchandising/variants).
+As opções aparecem como ofertas distintas no catálogo/configurador.
+O nome persistido inclui a variação para identificá-la também no resumo,
+nas configurações salvas e no PDF. A busca aceita SKU. A coleta ignora
+variantes sem ID estável, sem inventar uma identidade pelo preço ou título.
+
+Em HTML, é possível configurar seletores opcionais `external_product_id`,
+`external_variant_id`, `sku`, `variant_title` e `variant_options` (mapa de
+nomes de opções para seletores). O identificador de variante configurado
+precisa ser estável e único por loja; rótulos como "M" não servem como ID.
+Sem identificador explícito, a identidade usa a URL, mantendo parâmetros
+funcionais como tamanho, cor e variante. A coleta de páginas que dependem
+de seleção interativa requer configuração própria da fonte.
+
+Normalizam-se protocolo/domínio e removem-se fragmentos e parâmetros
+conhecidos de rastreamento (`utm_*`, `gclid`, `fbclid`, `msclkid`, `dclid`).
+Não se remove a consulta inteira, não se altera caixa do caminho e não
+se juntam ofertas apenas por nome, SKU ou fabricante iguais. A unicidade
+é por fonte+ID de variante; sem variante explícita, por fonte+URL.
+Variantes identificadas podem compartilhar uma página sem colidir na base.
+
+Listagens repetidas são deduplicadas antes da categorização. Valores
+contraditórios para a mesma identidade entram em revisão. Na recoleta,
+URLs antigas são reconciliadas por fonte; duplicatas recebem `duplicate_of`
+e ficam fora da seleção, sem exclusão dos registros, montagens ou histórico.
+Ofertas antigas sem variante que passaram a ter opções explícitas vão
+para revisão, sem atribuir uma opção arbitrária a uma montagem salva.
+O controle de revisão não resolve conflitos de identidade automaticamente.
+
 ### Imagens externas com falha (etapa 11)
 
 Catálogo, cartões e resumo do configurador e revisão administrativa usam
@@ -153,11 +251,10 @@ itens indisponíveis da etapa 3. A interface usa os rótulos "Em estoque na
 última coleta", "Sem estoque na última coleta" e "Disponibilidade
 desconhecida", e mostra a data da consulta quando registrada.
 
-No Shopify, estoque e preço vêm da mesma variante representativa: prefere
-uma com `available: true`; sem ela, prefere uma de disponibilidade
-desconhecida antes de escolher uma explicitamente esgotada. Apenas
-booleanos são aceitos como confirmação. Isso não implementa escolha de
-tamanho/variante pelo usuário, prevista para a evolução do catálogo.
+No Shopify, estoque e preço vêm da mesma variante. A partir da etapa 12,
+todas as variantes identificadas são coletadas individualmente, em vez
+de selecionar uma representante do produto. Apenas booleanos são aceitos
+como confirmação de estoque.
 
 Em HTML, o perfil pode declarar `availability` com seletores `in_stock`
 e `out_of_stock`. Ausência ou presença simultânea dos marcadores resulta

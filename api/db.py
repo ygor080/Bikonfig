@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 import psycopg
 from psycopg.rows import dict_row
+from product_identity import normalize_product_url
 
 def get_connection():
     dsn = os.environ.get("DATABASE_URL")
@@ -40,17 +41,19 @@ def get_or_create_source(conn, domain: str, display_name: str) -> int:
 
 def save_raw_scrape(conn, source_id: int, product_url: str, raw_name: str,
                      raw_price_text: str, raw_image_url: str | None,
-                     raw_html_snippet: str = "") -> None:
+                     raw_html_snippet: str = "", raw_description: str = "",
+                     raw_attributes: dict | None = None, raw_variant_options: dict | None = None) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO raw_scrapes
                 (source_id, product_url, raw_name, raw_price_text,
-                 raw_image_url, raw_html_snippet)
-            VALUES (%s, %s, %s, %s, %s, %s)
+                 raw_image_url, raw_html_snippet, raw_description, raw_attributes, raw_variant_options)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)
             """,
             (source_id, product_url, raw_name, raw_price_text,
-             raw_image_url, raw_html_snippet),
+             raw_image_url, raw_html_snippet, raw_description,
+             json.dumps(raw_attributes or {}), json.dumps(raw_variant_options or {})),
         )
     conn.commit()
 
@@ -101,6 +104,12 @@ def upsert_product(
     is_optional: bool = False,
     manufacturer: str | None = None,
     in_stock: bool | None = None,
+    external_product_id: str | None = None,
+    external_variant_id: str | None = None,
+    sku: str | None = None,
+    variant_title: str | None = None,
+    variant_options: dict | None = None,
+    force_review: bool = False,
 ) -> str:
     """
     Insere ou atualiza um produto. Se o preço mudou em relação ao que já
@@ -109,6 +118,12 @@ def upsert_product(
 
     Retorna o UUID do produto.
     """
+    product_url = normalize_product_url(product_url)
+    external_product_id = str(external_product_id) if external_product_id is not None else None
+    external_variant_id = str(external_variant_id) if external_variant_id is not None else None
+    sku = sku.strip() if isinstance(sku, str) and sku.strip() else None
+    variant_title = variant_title.strip() if isinstance(variant_title, str) and variant_title.strip() else None
+    variant_options = variant_options if isinstance(variant_options, dict) else {}
     manufacturer = " ".join(manufacturer.split()) if isinstance(manufacturer, str) else None
     manufacturer = manufacturer or None
     # Ausência de evidência não deve ser convertida em "sem estoque".
@@ -116,51 +131,87 @@ def upsert_product(
     category_id = get_category_id(conn, category_slug) if category_slug else None
 
     with conn.cursor() as cur:
+        # Serializa recoletas da mesma identidade, inclusive por URLs com rastreamento.
+        cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (f"{source_id}:{external_variant_id or product_url}",))
         cur.execute(
-            "SELECT id, current_price FROM products WHERE source_id = %s AND product_url = %s",
-            (source_id, product_url),
+            """SELECT id, current_price, specs, specs_manually_reviewed FROM products
+               WHERE source_id = %s AND duplicate_of IS NULL AND (
+                   (%s::text IS NOT NULL AND external_variant_id = %s)
+                   OR (%s::text IS NULL AND (canonical_url = %s OR product_url = %s)
+                       AND external_variant_id IS NULL))
+               ORDER BY (external_variant_id = %s) DESC NULLS LAST, (product_url = %s) DESC, created_at, id LIMIT 1""",
+            (source_id, external_variant_id, external_variant_id, external_variant_id, product_url, product_url, external_variant_id, product_url),
         )
         existing = cur.fetchone()
 
         if existing:
             product_id = existing["id"]
+            # Dados antigos não desaparecem silenciosamente nem permanecem confirmados
+            # quando a nova extração deixa de sustentá-los. A revisão decide o destino.
+            old_specs = existing.get('specs') or {}
+            if not existing.get('specs_manually_reviewed', False) and isinstance(old_specs, dict) and any(key not in specs for key in old_specs):
+                needs_review = True
             price_changed = (
                 price is not None
-                and existing["current_price"] is not None
-                and float(existing["current_price"]) != float(price)
+                and (existing["current_price"] is None or float(existing["current_price"]) != float(price))
             )
             cur.execute(
                 """
                 UPDATE products
                 SET name = %s, image_url = %s, current_price = %s,
-                    category_id = COALESCE(%s, category_id),
-                    specs = specs || %s::jsonb,
+                    product_url = CASE WHEN EXISTS (
+                        SELECT 1 FROM products other WHERE other.source_id = products.source_id
+                        AND other.id <> products.id AND other.product_url = %s
+                    ) THEN product_url ELSE %s END, canonical_url = %s,
+                    external_product_id = COALESCE(%s, external_product_id),
+                    external_variant_id = COALESCE(%s, external_variant_id),
+                    sku = %s, variant_title = %s, variant_options = %s::jsonb,
+                    category_id = CASE WHEN category_manually_reviewed THEN category_id ELSE COALESCE(%s, category_id) END,
+                    specs = CASE WHEN specs_manually_reviewed THEN specs ELSE specs || %s::jsonb END,
                     ai_confidence = COALESCE(%s, ai_confidence),
-                    needs_review = %s,
+                    needs_review = CASE WHEN %s THEN true
+                        WHEN category_manually_reviewed AND specs_manually_reviewed AND manufacturer_manually_reviewed THEN needs_review
+                        ELSE %s END,
                     is_optional = %s,
                     in_stock = %s,
                     stock_checked_at = now(),
-                    manufacturer = COALESCE(%s, manufacturer),
+                    manufacturer = CASE WHEN manufacturer_manually_reviewed THEN manufacturer ELSE COALESCE(%s, manufacturer) END,
                     updated_at = now()
                 WHERE id = %s
                 """,
-                (name, image_url, price, category_id, json.dumps(specs),
-                 ai_confidence, needs_review, is_optional, in_stock, manufacturer, product_id),
+                (name, image_url, price, product_url, product_url, product_url, external_product_id, external_variant_id,
+                 sku, variant_title, json.dumps(variant_options), category_id, json.dumps(specs),
+                 ai_confidence, bool(force_review), needs_review, is_optional, in_stock, manufacturer, product_id),
             )
         else:
             cur.execute(
                 """
                 INSERT INTO products
                     (source_id, category_id, name, product_url, image_url,
+                     canonical_url, external_product_id, external_variant_id, sku, variant_title, variant_options,
                      current_price, specs, ai_confidence, needs_review, is_optional, in_stock, manufacturer, stock_checked_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, now())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s, %s, %s, %s, now())
                 RETURNING id
                 """,
                 (source_id, category_id, name, product_url, image_url,
+                 product_url, external_product_id, external_variant_id, sku, variant_title, json.dumps(variant_options),
                  price, json.dumps(specs), ai_confidence, needs_review, is_optional, in_stock, manufacturer),
             )
             product_id = cur.fetchone()["id"]
             price_changed = price is not None
+
+        if external_variant_id is not None:
+            # Oferta antiga sem variante não identifica qual opção foi salva.
+            # Encaminha para revisão em vez de atribuir uma opção arbitrária ou apagar dados.
+            from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+            parsed = urlsplit(product_url)
+            base_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path,
+                urlencode([(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k != "variant"]), ""))
+            cur.execute("""UPDATE products SET needs_review = true
+                           WHERE source_id = %s AND id <> %s AND external_variant_id IS NULL
+                           AND (canonical_url = %s OR product_url = %s)""",
+                        (source_id, product_id, base_url, base_url))
 
         if price_changed:
             cur.execute(
@@ -170,3 +221,29 @@ def upsert_product(
 
     conn.commit()
     return str(product_id)
+
+
+def reconcile_product_urls(conn, source_id: int) -> set[str]:
+    """Normaliza identidades antigas sem excluir produtos, itens salvos ou histórico."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, product_url, name, external_variant_id FROM products WHERE source_id = %s ORDER BY created_at, id", (source_id,))
+        groups = {}
+        for row in cur.fetchall():
+            try:
+                canonical = normalize_product_url(row["product_url"])
+            except (ValueError, TypeError, AttributeError):
+                continue
+            # Variantes explícitas distintas nunca são agrupadas só por compartilhar URL.
+            groups.setdefault((canonical, row.get("external_variant_id")), []).append(row)
+        conflicts = set()
+        for (canonical, _variant), rows in groups.items():
+            rows.sort(key=lambda row: row["product_url"] != canonical)
+            different_names = len({row["name"] for row in rows}) > 1
+            if different_names:
+                conflicts.add(canonical)
+            for index, row in enumerate(rows):
+                cur.execute("""UPDATE products SET canonical_url = %s, duplicate_of = %s,
+                               needs_review = CASE WHEN %s THEN true ELSE needs_review END WHERE id = %s""",
+                            (canonical, rows[0]["id"] if index > 0 else None, index > 0 or different_names, row["id"]))
+    conn.commit()
+    return conflicts
