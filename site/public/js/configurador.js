@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function () {
         alvo.innerHTML =
             (multipla ? '<p class="config-posicao-aviso">Aqui você pode marcar quantos acessórios quiser -- clique de novo em um item marcado para removê-lo.</p>' : '') +
             '<div class="grid-produtos">' +
-            pecas.map(function (peca) {
+            pecas.map(function (peca, indice) {
                 const ativo = ativoParaPeca(peca);
                 const consultaEstoque = peca.estoque_verificado_em ? new Date(peca.estoque_verificado_em) : null;
                 const dataEstoque = consultaEstoque && !Number.isNaN(consultaEstoque.getTime())
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         (peca.opcional ? '<span class="tag-opcional">opcional</span>' : '') +
                         '<div class="produto-imagem"><img src="' + textoSeguro(urlImagemSegura(peca.imagem, peca.imagemFallback))
                             + '" data-imagem-fallback="' + textoSeguro(urlImagemSegura(null, peca.imagemFallback))
-                            + '" alt="' + textoSeguro(peca.nome) + '"></div>' +
+                            + '" alt="' + textoSeguro(peca.nome) + '" loading="' + (indice < 3 ? 'eager' : 'lazy') + '" decoding="async" width="240" height="240"></div>' +
                         '<h3>' + textoSeguro(peca.nome) + '</h3>' +
                         (peca.variante_id ? '<p class="loja">Variação: ' + textoSeguro(peca.variante || 'Padrão') + '</p>' : '') +
                         (peca.sku ? '<p class="loja">SKU: ' + textoSeguro(peca.sku) + '</p>' : '') +

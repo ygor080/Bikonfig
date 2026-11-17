@@ -545,6 +545,9 @@ input:focus-visible {
     margin: 30px 0;
 }
 
+.paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; margin: 24px 0; }
+.paginacao .btn-secundario { width: auto; min-height: 44px; }
+
 .produto-card {
     background: #fff;
     border: 1px solid var(--borda);

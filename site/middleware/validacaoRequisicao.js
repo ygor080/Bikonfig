@@ -16,6 +16,8 @@ function validarSubcategoria(req, res, next) {
     next();
 }
 function validarBusca(req, res, next) {
+    if (req.query.pagina !== undefined && (typeof req.query.pagina !== 'string' || !/^[1-9]\d{0,4}$/.test(req.query.pagina)
+        || Number(req.query.pagina) > 10000)) return rejeitar(res, 'Informe uma página entre 1 e 10000.');
     if (req.query.busca !== undefined && !texto(req.query.busca, 200, true)) return rejeitar(res, 'Informe uma busca de até 200 caracteres.');
     next();
 }

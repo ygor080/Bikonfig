@@ -52,6 +52,9 @@
             <% } %>
         </form>
 
+        <% if (typeof paginacao !== 'undefined' && paginacao.total > 0) { %>
+            <p role="status">Mostrando <%= (paginacao.pagina - 1) * paginacao.tamanho + 1 %>–<%= Math.min(paginacao.pagina * paginacao.tamanho, paginacao.total) %> de <%= paginacao.total %> ofertas.</p>
+        <% } %>
         <% if (vazio) { %>
             <div class="catalogo-vazio">
                 <div class="icone-estado">
@@ -103,7 +106,7 @@
                 <% for (let i = 0; i < produtos.length; i++) { %>
                     <div class="produto-card">
                         <div class="produto-imagem">
-                            <img src="<%= produtos[i].imagem || produtos[i].imagemFallback %>" data-imagem-fallback="<%= produtos[i].imagemFallback %>" alt="<%= produtos[i].nome %>">
+                            <img src="<%= produtos[i].imagem || produtos[i].imagemFallback %>" data-imagem-fallback="<%= produtos[i].imagemFallback %>" alt="<%= produtos[i].nome %>" loading="<%= i < 3 ? 'eager' : 'lazy' %>" decoding="async" width="240" height="240">
                         </div>
                         <h3><%= produtos[i].nome %></h3>
                         <% if (produtos[i].variante_id) { %><p class="loja">Variação: <%= produtos[i].variante || 'Padrão' %></p><% } %>
@@ -136,6 +139,13 @@
             </div>
         <% } %>
 
+        <% if (typeof paginacao !== 'undefined' && paginacao.paginas > 1) { %>
+            <nav class="paginacao" aria-label="Páginas do catálogo">
+                <% if (paginacao.pagina > 1) { %><a class="btn-secundario" rel="prev" href="/catalogo?pagina=<%= paginacao.pagina - 1 %>&amp;busca=<%= encodeURIComponent(busca) %>">Anterior</a><% } %>
+                <span aria-current="page">Página <%= paginacao.pagina %> de <%= paginacao.paginas %></span>
+                <% if (paginacao.pagina < paginacao.paginas) { %><a class="btn-secundario" rel="next" href="/catalogo?pagina=<%= paginacao.pagina + 1 %>&amp;busca=<%= encodeURIComponent(busca) %>">Próxima</a><% } %>
+            </nav>
+        <% } %>
         <div class="acoes">
             <a href="/catalogo/configurador" class="btn-principal">
                 Iniciar configuração

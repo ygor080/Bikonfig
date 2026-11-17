@@ -139,6 +139,23 @@ const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
 const PRODUTO_PUBLICAVEL_SQL = require('../config/produtoPublicavel');
 
 class ProdutoModel {
+    static async listarPaginado(busca = '', pagina = 1) {
+        if (!Number.isInteger(pagina) || pagina < 1 || pagina > 10000) throw new RangeError('Página inválida.');
+        const tamanho = 24;
+        const termo = busca && busca.trim() ? `%${busca.trim()}%` : null;
+        // Uma consulta devolve a contagem e somente os produtos da página, inclusive para páginas vazias.
+        const { rows: [resultado] } = await pool.query(`WITH filtrados AS (
+            SELECT ${CAMPOS_PRODUTO}, ${ORDEM_PRIORIDADE_SQL} AS ordem ${FROM_PRODUTO}
+            WHERE ${PRODUTO_PUBLICAVEL_SQL}
+            AND ($1::text IS NULL OR p.name ILIKE $1 OR p.manufacturer ILIKE $1 OR s.name ILIKE $1 OR p.sku ILIKE $1)
+        ), totais AS (SELECT COUNT(*) AS total FROM filtrados), pagina AS (
+            SELECT * FROM filtrados ORDER BY ordem, nome, id LIMIT $2 OFFSET $3
+        ) SELECT totais.total, COALESCE(jsonb_agg(to_jsonb(pagina) ORDER BY pagina.ordem, pagina.nome, pagina.id)
+            FILTER (WHERE pagina.id IS NOT NULL), '[]'::jsonb) AS produtos
+            FROM totais LEFT JOIN pagina ON true GROUP BY totais.total`, [termo, tamanho, (pagina - 1) * tamanho]);
+        return { produtos: resultado.produtos.map(normalizarProduto), total: Number(resultado.total), pagina, tamanho };
+    }
+
     static async getEstruturaCategorias() {
         const { rows } = await pool.query('SELECT id, slug, name, parent_id FROM categories ORDER BY name');
 

@@ -8,7 +8,11 @@ const catalogoController = {
         if (!req.session.user) return res.redirect('/login');
 
         const busca = typeof req.query.busca === 'string' ? req.query.busca.trim() : '';
-        const produtos = await ProdutoModel.listarTodos(busca);
+        const pagina = req.query.pagina === undefined ? 1 : Number(req.query.pagina);
+        const resultado = await ProdutoModel.listarPaginado(busca, pagina);
+        const { produtos, total, tamanho } = resultado;
+        const paginas = Math.max(1, Math.ceil(total / tamanho));
+        if (pagina > paginas) return res.redirect('/catalogo?pagina=' + paginas + (busca ? '&busca=' + encodeURIComponent(busca) : ''));
         const semResultadoDaBusca = busca !== '' && produtos.length === 0;
         const vazio = !busca && produtos.length === 0;
 
@@ -17,7 +21,8 @@ const catalogoController = {
             vazio: vazio,
             semResultadoDaBusca: semResultadoDaBusca,
             produtos: produtos,
-            busca: busca
+            busca: busca,
+            paginacao: { pagina, paginas, total, tamanho }
         });
     },
 

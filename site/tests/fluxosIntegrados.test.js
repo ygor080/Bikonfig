@@ -277,4 +277,34 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         const aberta = await (await dono.pedir('/catalogo/api/configuracoes/' + salva.id)).json();
         assert.equal(aberta.indisponiveis[0].id, quadro);
     });
+    await t.test('catálogo pagina busca em 24 ofertas, sem repetir variantes e sem carregar imagens abaixo da dobra imediatamente', async () => {
+        await db.exec(`INSERT INTO products (source_id, category_id, name, product_url, current_price, needs_review, in_stock, sku)
+            SELECT (SELECT id FROM sources LIMIT 1), (SELECT id FROM categories WHERE slug = 'quadro'),
+                'Produto paginado ' || lpad(g::text, 3, '0'), 'https://loja.test/paginada/' || g, 10, false, true, 'PAG-ETAPA27'
+            FROM generate_series(1, 53) AS g`);
+        const { JSDOM } = require('jsdom');
+        const ids = [];
+        for (let pagina = 1; pagina <= 3; pagina++) {
+            const resposta = await dono.pedir('/catalogo?busca=PAG-ETAPA27&pagina=' + pagina);
+            assert.equal(resposta.status, 200);
+            const dom = new JSDOM(await resposta.text());
+            try {
+                const d = dom.window.document;
+                assert.equal(d.querySelectorAll('.produto-card').length, pagina < 3 ? 24 : 5);
+                for (const link of d.querySelectorAll('.produto-card a')) ids.push(new URL(link.getAttribute('href'), 'https://bikonfig.test').searchParams.get('produto'));
+                assert.equal(d.querySelectorAll('img[loading="eager"]').length, 3);
+                assert.equal(d.querySelectorAll('img[loading="lazy"]').length, pagina < 3 ? 21 : 2);
+                assert.equal(d.querySelector('input[name="busca"]').value, 'PAG-ETAPA27');
+                if (pagina < 3) assert.ok(d.querySelector('a[rel="next"]').getAttribute('href').includes('busca=PAG-ETAPA27'));
+            } finally { dom.window.close(); }
+        }
+        assert.equal(ids.length, 53); assert.equal(new Set(ids).size, 53);
+        const fim = await dono.pedir('/catalogo?busca=PAG-ETAPA27&pagina=99');
+        assert.equal(fim.status, 302); assert.match(fim.headers.get('location'), /pagina=3.*busca=PAG-ETAPA27/);
+        const vazio = await dono.pedir('/catalogo?busca=INEXISTENTE-ETAPA27');
+        assert.match(await vazio.text(), /Nenhuma peça encontrada/);
+        for (const pagina of ['0', '-1', '1.5', 'abc', '10001', '01', '1&pagina=2']) {
+            assert.equal((await dono.pedir('/catalogo?pagina=' + pagina)).status, 400);
+        }
+    });
 });

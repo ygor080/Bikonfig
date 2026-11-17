@@ -458,6 +458,19 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Paginação e desempenho do catálogo (etapa 27)
+
+O catálogo web agora mostra 24 ofertas por página, com total, navegação e
+busca preservada. A consulta mantém a ordenação com desempate por ID e
+devolve somente os produtos da página. Imagens abaixo das primeiras posições
+no catálogo e no configurador usam carregamento adiado pelo navegador.
+
+Na amostra de 455 ofertas, os dados serializados da primeira página caíram
+de 337.358 para 18.200 bytes (cerca de 94,6%). Veja metodologia, tempos e
+limites em [docs/desempenho.md](docs/desempenho.md). O comando de leitura
+`npm --prefix site run benchmark:catalog` permite repetir a medição.
+Sem migração, cache de preços ou variável de ambiente nova.
+
 ### Qualidade do catálogo e revisão de aprovados (etapa 26)
 
 Administradores podem acessar `/admin/qualidade` para localizar falta de
