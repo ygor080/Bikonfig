@@ -193,6 +193,7 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
                     "external_variant_id": variant_id,
                     "sku": variant.get("sku") or None,
                     "variant_title": variant_title or None,
+                    "variant_options": options,
                     # "vendor" pode identificar o lojista. Só usar após verificar
                     # que o campo representa o fabricante nesta fonte específica.
                     "manufacturer": prod.get(profile["manufacturer_field"]) if profile.get("manufacturer_field") else None,
