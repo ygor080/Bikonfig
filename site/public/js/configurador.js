@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const configMenu = document.getElementById('configMenu');
     if (!configMenu) return;
     const { textoSeguro, urlImagemSegura } = window.BikonfigConteudoSeguro;
+    const csrfToken = document.querySelector?.('meta[name="csrf-token"]')?.content || '';
 
     const listaPecasEl = document.getElementById('configListaPecas');
     const orcamentoListaEl = document.getElementById('orcamentoLista');
@@ -490,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const resposta = await fetch('/catalogo/api/orcamento', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                 body: JSON.stringify({ ids, itens, tipoMontagem: tipoMontagemAtual() })
             });
             if (versao !== versaoOrcamento) return;
@@ -570,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const resposta = await fetch('/catalogo/api/pdf', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                     body: JSON.stringify({ itens })
                 });
 
@@ -635,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const estadoEnviado = JSON.stringify({ itens, tipoMontagem: tipoEnviado });
                 const resposta = await fetch('/catalogo/api/configuracoes' + (configuracaoEmEdicao ? '/' + encodeURIComponent(configuracaoEmEdicao) : ''), {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                     body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoEnviado })
                 });
 

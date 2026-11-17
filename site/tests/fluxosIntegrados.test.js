@@ -11,6 +11,20 @@ const pneu = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const pendente = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 const senha = 'TesteIntegrado123!';
 
+function verificarFormularios(html) {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(html);
+    try {
+        const token = dom.window.document.querySelector('meta[name="csrf-token"]').content;
+        assert.match(token, /^[a-f0-9]{64}$/);
+        for (const form of dom.window.document.querySelectorAll('form[method="POST"]')) {
+            assert.equal(form.querySelectorAll('input[name="_csrf"]').length, 1);
+            assert.equal(form.querySelector('input[name="_csrf"]').value, token);
+            assert.match(form.getAttribute('action'), /^\/[a-z0-9\/-]+$/);
+        }
+    } finally { dom.window.close(); }
+}
+
 test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL temporário', async t => {
     const db = new PGlite();
     const stores = [], servers = [];
@@ -54,8 +68,15 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         return {
             get cookie() { return cookie; },
             async pedir(url, body, method) {
+                let token;
+                if (body) {
+                    let pagina = await this.pedir('/login');
+                    if (pagina.status === 302) pagina = await this.pedir('/home');
+                    token = (await pagina.text()).match(/name="csrf-token" content="([a-f0-9]+)"/)?.[1];
+                    assert.ok(token, 'Página deve fornecer token CSRF');
+                }
                 const resposta = await fetch(base + url, { redirect: 'manual', method: method || (body ? 'POST' : 'GET'),
-                    headers: { ...(cookie ? { cookie } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
+                    headers: { ...(cookie ? { cookie } : {}), ...(body ? { 'content-type': 'application/json', 'x-csrf-token': token } : {}) },
                     body: body ? JSON.stringify(body) : undefined });
                 const novo = resposta.headers.get('set-cookie');
                 if (novo) cookie = novo.split(';')[0];
@@ -108,7 +129,9 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     });
     await t.test('logout invalida cookie antigo e login exige senha correta e renova sessão', async () => {
         const antigo = dono.cookie;
-        assert.equal((await dono.pedir('/logout')).status, 302);
+        assert.equal((await dono.pedir('/logout')).status, 405);
+        assert.equal((await dono.pedir('/home')).status, 200);
+        assert.equal((await dono.pedir('/logout', {})).status, 302);
         const expirado = await fetch(base + '/home', { redirect: 'manual', headers: { cookie: antigo } });
         assert.equal(expirado.status, 302);
         assert.match(await (await dono.pedir('/login', { usuario: 'dono', senha: 'incorreta' })).text(), /Usuário ou senha inválidos/);
@@ -161,7 +184,8 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     await t.test('administrador revisa produto e grava autoria e especificações no banco', async () => {
         await db.query('INSERT INTO usuarios (nome, email, senha, is_admin) VALUES ($1, $2, $3, true)', ['admin', 'admin@teste.invalid', await bcrypt.hash(senha, 10)]);
         assert.equal((await admin.pedir('/login', { usuario: 'admin', senha })).status, 302);
-        assert.equal((await admin.pedir('/admin/revisao')).status, 200);
+        const revisao = await admin.pedir('/admin/revisao');
+        assert.equal(revisao.status, 200); verificarFormularios(await revisao.text());
         assert.equal((await admin.pedir('/admin/revisao/' + pendente + '/aprovar', { categoria: 'guidao', fabricante: 'Fabricante', specsTexto: 'aro: 29' })).status, 302);
         const { rows: [produto] } = await db.query('SELECT * FROM products WHERE id = $1', [pendente]);
         assert.equal(produto.needs_review, false); assert.equal(produto.manufacturer, 'Fabricante');
@@ -174,6 +198,25 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         await assert.rejects(Model.atualizar(montagem, usuario.id, 'Não persistir', [{ id: 'ffffffff-ffff-ffff-ffff-ffffffffffff' }]));
         assert.deepEqual(await Model.listarItens(montagem), antes);
         assert.equal((await Model.buscarPorId(montagem, usuario.id)).nome, 'Bike editada');
+    });
+    await t.test('ações reais sem CSRF são rejeitadas e formulários incluem token da sessão', async () => {
+        for (const caminho of ['/login', '/cadastro', '/logout', '/catalogo/api/orcamento', '/catalogo/api/pdf',
+            '/catalogo/api/configuracoes', '/catalogo/api/configuracoes/' + montagem,
+            '/catalogo/api/configuracoes/' + montagem + '/excluir', '/admin/revisao/' + pendente + '/aprovar',
+            '/admin/revisao/' + pendente + '/rejeitar']) {
+            const res = await fetch(base + caminho, { method: 'POST', headers: { cookie: dono.cookie, 'content-type': 'application/json' }, body: '{}' });
+            assert.equal(res.status, 403, caminho); assert.equal((await res.json()).codigo, 'CSRF_INVALIDO');
+        }
+        assert.equal((await dono.pedir('/home')).status, 200);
+        assert.equal((await (await dono.pedir('/catalogo/api/configuracoes/' + montagem)).json()).nome, 'Bike editada');
+        for (const [clienteAtual, caminho] of [[dono, '/home'], [dono, '/catalogo/minhas-configuracoes'], [admin, '/admin/revisao']]) {
+            const html = await (await clienteAtual.pedir(caminho)).text();
+            verificarFormularios(html);
+            const token = html.match(/name="csrf-token" content="([a-f0-9]+)"/)[1];
+            assert.ok(html.includes('action="/logout"'));
+            for (const campo of html.matchAll(/name="_csrf" value="([^"]*)"/g)) assert.equal(campo[1], token);
+            assert.ok(!html.includes('href="/logout"'));
+        }
     });
     await t.test('sessão persiste em nova instância do app e dono exclui montagem com seus itens', async () => {
         base = await iniciar();

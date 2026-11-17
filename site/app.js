@@ -22,6 +22,7 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     const PgSession = require('connect-pg-simple')(session);
     opcoes.store = store || new PgSession({ pool, tableName: 'sessoes_site', createTableIfMissing: true });
     app.use(session(opcoes));
+    app.use(require('./middleware/csrf'));
     app.use('/', require('./routes/authRoutes'));
     app.use('/catalogo', require('./routes/catalogoRoutes'));
     app.use('/admin', require('./routes/adminRoutes'));

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Criar conta - Bikonfig</title>
@@ -26,6 +27,7 @@
             <% } %>
 
             <form method="POST" action="/cadastro" class="form-login" id="formCadastro" novalidate>
+                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                 <label class="campo-label" for="nome">Usuário</label>
                 <input type="text" id="nome" name="nome" placeholder="Usuario" value="<%= valores.nome || '' %>" minlength="3" maxlength="40" required>
 

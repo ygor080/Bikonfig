@@ -33,7 +33,7 @@ test('rascunhos separam usuário e montagem, expiram e armazenam apenas identifi
 
 async function abrir(t, { storage = armazenamento(), user = usuario, query = '', falhaCatalogo = false, falhaSalvar = false, ausente = false, pendente = null } = {}) {
     const categorias = ['quadro', 'pneus'].map(slug => ({ slug, nome: slug, subcategorias: [{ slug, nome: slug }] }));
-    const html = ejs.render(fs.readFileSync(require.resolve('../views/configurador.ejs'), 'utf8'), { usuario: { id: user, nome: 'Teste' }, categorias });
+    const html = ejs.render(fs.readFileSync(require.resolve('../views/configurador.ejs'), 'utf8'), { usuario: { id: user, nome: 'Teste' }, categorias, csrfToken: 'a'.repeat(64) });
     const dom = new JSDOM(html, { url: 'https://bikonfig.test/catalogo/configurador' + query, runScripts: 'dangerously' });
     t.after(() => dom.window.close());
     const w = dom.window; const chamadas = [];
@@ -42,7 +42,7 @@ async function abrir(t, { storage = armazenamento(), user = usuario, query = '',
     w.Bikonfig = { toast() {}, promptDialog: async () => 'Minha bike', confirmDialog: async () => true };
     const produto = subcategoria => ({ id, subcategoria, nome: 'Peça atual', preco: 250, imagem: '/img/pecas/quadro.svg' });
     w.fetch = async (url, opcoes) => {
-        chamadas.push({ url, method: opcoes?.method, body: opcoes?.body && JSON.parse(opcoes.body) });
+        chamadas.push({ url, method: opcoes?.method, headers: opcoes?.headers, body: opcoes?.body && JSON.parse(opcoes.body) });
         if (url.includes('/api/configuracoes') && opcoes?.method === 'POST') {
             if (pendente) await pendente;
             return { ok: !falhaSalvar, json: async () => falhaSalvar ? { erro: 'Falha ao salvar.' } : { id: config, nome: 'Minha bike' } };
@@ -64,6 +64,7 @@ async function abrir(t, { storage = armazenamento(), user = usuario, query = '',
 test('DOM guarda cada seleção e mudança de tipo e recupera após reabrir com preço atual', async t => {
     const primeira = await abrir(t);
     await primeira.selecionar(); await primeira.tipo('single-speed');
+    assert.equal(primeira.chamadas.find(c => c.method === 'POST').headers['X-CSRF-Token'], 'a'.repeat(64));
     const dados = rascunho.criar(primeira.storage, usuario).ler(null);
     assert.equal(dados.itens.length, 1); assert.equal(dados.tipoMontagem, 'single-speed');
     const segunda = await abrir(t, { storage: primeira.storage });

@@ -9,6 +9,7 @@ router.post('/login', limiteAutenticacao, authController.processarLogin);
 router.get('/cadastro', authController.exibirCadastro);
 router.post('/cadastro', limiteAutenticacao, authController.processarCadastro);
 
-router.get('/logout', authController.logout);
+router.get('/logout', (req, res) => res.set('Allow', 'POST').status(405).send('Use o botão Sair para encerrar a sessão.'));
+router.post('/logout', authController.logout);
 
 module.exports = router;

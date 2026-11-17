@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home - Bikonfig</title>
@@ -23,7 +24,7 @@
                 <a href="/catalogo/configurador">Configurador</a>
                 <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
                 <% if (usuario.isAdmin) { %><a href="/admin/revisao">Revisão</a><% } %>
-                <a href="/logout" class="sair">Sair</a>
+                <form method="POST" action="/logout" class="form-sair"><input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"><button type="submit" class="sair">Sair</button></form>
             </nav>
         </div>
     </header>

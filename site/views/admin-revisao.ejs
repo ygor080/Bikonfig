@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Revisão de produtos - Bikonfig</title>
@@ -23,7 +24,7 @@
                 <a href="/catalogo">Catalogo</a>
                 <a href="/catalogo/configurador">Configurador</a>
                 <a href="/catalogo/minhas-configuracoes">Minhas configs</a>
-                <a href="/logout" class="sair">Sair</a>
+                <form method="POST" action="/logout" class="form-sair"><input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"><button type="submit" class="sair">Sair</button></form>
             </nav>
         </div>
     </header>
@@ -88,6 +89,7 @@
                         </div>
 
                         <form method="POST" action="/admin/revisao/<%= p.id %>/aprovar" class="admin-card__form">
+                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                             <label>
                                 Fabricante (deixe vazio se não informado)
                                 <input type="text" name="fabricante" maxlength="200" value="<%= p.fabricante || '' %>" placeholder="Ex.: Shimano">
@@ -121,6 +123,7 @@
                         </form>
 
                         <form method="POST" action="/admin/revisao/<%= p.id %>/rejeitar" class="admin-card__rejeitar js-form-confirmar" data-confirmar-titulo="Rejeitar produto" data-confirmar-mensagem="Rejeitar e excluir este produto? Essa ação não pode ser desfeita.">
+                            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                             <button type="submit" class="btn-secundario admin-btn-rejeitar">Rejeitar / excluir</button>
                         </form>
                     </div>

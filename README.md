@@ -458,6 +458,34 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Proteção das ações contra CSRF (etapa 24)
+
+Todas as requisições que alteram estado exigem um token aleatório de 32
+bytes vinculado à sessão. Login e cadastro também são protegidos. Formulários
+POST enviam `_csrf`; o configurador envia `X-CSRF-Token` nos pedidos de
+orçamento, PDF e salvamento. O servidor remove o campo de transporte antes
+de validar os dados de negócio. Tokens em URLs não são aceitos.
+
+Tokens ausentes, malformados, de outra sessão ou enviados em campos
+conflitantes retornam HTTP 403 com `codigo: CSRF_INVALIDO`. O cabeçalho
+`Sec-Fetch-Site: cross-site` também bloqueia ações. O usuário deve recarregar
+a página para obter um formulário válido após expiração ou renovação da
+sessão; rascunhos locais continuam preservados. Páginas com token usam
+`Cache-Control: no-store`, enquanto assets e `/healthz` continuam fora do
+middleware de sessão/CSRF.
+
+O botão **Sair** é um formulário POST protegido, inclusive sem JavaScript.
+`GET /logout` retorna 405 com `Allow: POST`, mantendo a sessão. A regeneração
+de sessão no login/cadastro invalida o token anterior; a página após o
+redirecionamento emite um novo. Não há uma variável ou chave CSRF separada.
+
+Validação: `npm --prefix site test`, incluindo tokens de outra sessão,
+campos ambíguos, formulário e AJAX válidos, renovação, logout e tentativas
+sem token nas rotas reais, com PostgreSQL temporário. Não foi alterado o
+banco de produção. Sem migração ou dependência nova.
+
+Referência: [prevenção de CSRF da OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
+
 ### Banco e verificação de produção (etapa 23)
 
 Execute `npm --prefix site run check:production` no ambiente do deploy para
