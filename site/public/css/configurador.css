@@ -313,6 +313,21 @@
 .config-completude ul { padding-left: 18px; margin: 8px 0; }
 .config-completude li { margin: 4px 0; }
 
+.config-resumo-cabecalho { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.config-resumo-cabecalho .config-menu-titulo { flex: 1; margin-bottom: 0; }
+.config-indicador-componentes {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; min-width: 44px; height: 44px;
+    border: 0; border-radius: 50%; background: transparent; cursor: pointer;
+}
+.config-indicador-bolinha { display: block; width: 10px; height: 10px; border-radius: 50%; background: #b42318; }
+.config-indicador-componentes[data-estado="confirmacao"] .config-indicador-bolinha { background: #996000; }
+.config-indicador-componentes[data-estado="selecionados"] .config-indicador-bolinha { background: #287a48; }
+.config-indicador-componentes[data-estado="verificando"] .config-indicador-bolinha,
+.config-indicador-componentes[data-estado="indisponivel"] .config-indicador-bolinha { background: #6b6560; }
+.config-completude[hidden] { display: none; }
+.texto-acessivel { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
 .config-aviso-compat {
     background: #fff3e0;
     color: #b35c00;

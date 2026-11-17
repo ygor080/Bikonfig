@@ -462,6 +462,26 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Indicador compacto de componentes essenciais (etapa 30)
+
+O resumo do configurador mostra uma bolinha ao lado do título em vez de
+exibir toda a lista de requisitos. O botão abre/fecha os detalhes e mantém
+`aria-expanded` e `aria-controls` sincronizados. O texto acessível e a dica
+do botão informam a quantidade faltante; o estado não depende só da cor.
+
+Vermelho indica componentes faltantes; âmbar, confirmações pendentes;
+verde, itens principais previstos selecionados; cinza, consulta em andamento
+ou indisponível. A indicação verde não certifica compatibilidade ou segurança.
+A lista continua disponível mediante clique ou ativação pelo teclado e não
+é aberta automaticamente após cada seleção. Limpar a seleção, atualizar o
+orçamento e falhas de rede também atualizam o indicador.
+
+Validação: 149 testes Node aprovados, incluindo expansão, contagem, estados,
+escape de nomes e regressões de respostas atrasadas. Prévia local no Chrome
+em 320, 390 e 1280 px, com 24 componentes faltantes: lista inicialmente
+oculta, expansão funcional e ausência de rolagem horizontal. Sem migração
+ou configuração nova.
+
 ### Rodapé no fim da janela (etapa 29)
 
 O layout global usa uma coluna flexível com altura mínima da janela, incluindo

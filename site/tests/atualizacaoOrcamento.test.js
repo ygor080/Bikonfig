@@ -16,7 +16,9 @@ function preparar() {
     const elementos = {};
     function elemento(id) {
         return elementos[id] ||= {
-            innerHTML: '', textContent: '', children: [], disabled: false, listeners: {},
+            innerHTML: '', textContent: '', children: [], disabled: false, listeners: {}, dataset: {}, atributos: {},
+            setAttribute(nome, valor) { this.atributos[nome] = valor; },
+            getAttribute(nome) { return this.atributos[nome] ?? null; },
             querySelectorAll: () => [], querySelector: () => null,
             addEventListener(evento, acao) { this.listeners[evento] = acao; },
             appendChild(filho) { this.children.push(filho); }

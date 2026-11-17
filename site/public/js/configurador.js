@@ -27,6 +27,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnAtualizarOrcamento = document.getElementById('btnAtualizarOrcamento');
     const tipoMontagemEl = document.getElementById('tipoMontagem');
     const completudeEl = document.getElementById('configCompletude');
+    const indicadorComponentes = document.getElementById('btnComponentesEssenciais');
+    const estadoComponentesEl = document.getElementById('configEstadoComponentes');
+    if (indicadorComponentes && completudeEl) {
+        indicadorComponentes.addEventListener('click', function () {
+            const aberto = indicadorComponentes.getAttribute('aria-expanded') !== 'true';
+            completudeEl.hidden = !aberto;
+            indicadorComponentes.setAttribute('aria-expanded', String(aberto));
+        });
+    }
+    function atualizarIndicadorComponentes(estado, mensagem) {
+        if (indicadorComponentes) {
+            indicadorComponentes.dataset.estado = estado;
+            indicadorComponentes.setAttribute('aria-label', mensagem + ' Mostrar ou ocultar detalhes.');
+            indicadorComponentes.title = mensagem + ' Mostrar ou ocultar detalhes.';
+        }
+        if (estadoComponentesEl) estadoComponentesEl.textContent = mensagem;
+    }
     const tipoMontagemAtual = () => tipoMontagemEl?.value || 'com-marchas';
 
     const MAPA_SVG = {
@@ -403,9 +420,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!completudeEl) return;
         completudeEl.textContent = '';
         if (!relatorio) {
+            atualizarIndicadorComponentes('indisponivel', 'Verificação dos componentes essenciais indisponível. Atualize o orçamento.');
             completudeEl.textContent = 'Não foi possível conferir os componentes essenciais. Atualize o orçamento para tentar novamente.';
             return;
         }
+        const faltantes = Array.isArray(relatorio.faltantes) ? relatorio.faltantes.length : 0;
+        const confirmar = Array.isArray(relatorio.confirmar) ? relatorio.confirmar.length : 0;
+        if (faltantes || relatorio.status === 'incompleta') {
+            atualizarIndicadorComponentes('incompleta', faltantes ? faltantes + (faltantes === 1 ? ' componente essencial faltando.' : ' componentes essenciais faltando.') : 'Faltam componentes essenciais.');
+        } else if (confirmar || relatorio.status === 'confirmacao_necessaria') {
+            atualizarIndicadorComponentes('confirmacao', confirmar ? confirmar + (confirmar === 1 ? ' item precisa de confirmação.' : ' itens precisam de confirmação.') : 'Há itens que precisam de confirmação.');
+        } else if (relatorio.status === 'itens_selecionados') {
+            atualizarIndicadorComponentes('selecionados', 'Itens principais previstos selecionados. Confira os detalhes; isso não certifica compatibilidade ou segurança.');
+        } else atualizarIndicadorComponentes('indisponivel', 'Verificação dos componentes essenciais indisponível.');
         const resumo = document.createElement('p');
         resumo.textContent = relatorio.selecionados + ' de ' + relatorio.total + ' requisitos de componentes selecionados. '
             + (relatorio.status === 'itens_selecionados' ? 'Itens principais previstos selecionados.'
@@ -472,6 +499,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = false;
 
         if (entradas.length === 0) {
+            atualizarIndicadorComponentes('incompleta', 'Nenhuma peça selecionada. Faltam componentes essenciais.');
             if (completudeEl) completudeEl.textContent = 'Nenhuma peça selecionada. Escolha os componentes para conferir a lista de itens essenciais deste tipo de montagem.';
             orcamentoListaEl.innerHTML = '<li class="config-orcamento-vazio">Nenhuma peça selecionada ainda.</li>';
             orcamentoTotalEl.textContent = 'R$ 0,00';
@@ -484,6 +512,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const ids = entradas.map(p => p.id);
         const itens = entradas.map(p => ({ id: p.id, posicao: p.posicao || null }));
         orcamentoTotalEl.textContent = 'Calculando...';
+        atualizarIndicadorComponentes('verificando', 'Conferindo componentes essenciais.');
         if (completudeEl) completudeEl.textContent = 'Conferindo componentes essenciais...';
         avisosEl.textContent = '';
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = true;
@@ -526,6 +555,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (versao !== versaoOrcamento) return;
             console.error('Erro ao atualizar orcamento', erro);
             orcamentoTotalEl.textContent = 'Indisponível';
+            atualizarIndicadorComponentes('indisponivel', 'Verificação dos componentes essenciais indisponível. Atualize o orçamento.');
             avisosEl.textContent = 'Não foi possível atualizar o orçamento. Clique em "Atualizar orçamento" para tentar novamente.';
             if (completudeEl) completudeEl.textContent = 'Verificação de componentes essenciais indisponível. Atualize o orçamento para tentar novamente.';
         } finally {
