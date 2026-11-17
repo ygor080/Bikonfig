@@ -16,8 +16,8 @@ app.use(require('./middleware/segurancaConteudo'));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const { parsersRequisicao, erroRequisicao } = require('./middleware/validacaoRequisicao');
+app.use(parsersRequisicao());
 app.use(express.static('public'));
 
 const { opcoesSessao } = require('./config/sessao');
@@ -49,6 +49,7 @@ app.get('/home', (req, res) => {
     });
 });
 
+app.use(erroRequisicao);
 app.use((erro, req, res, next) => {
     if (res.headersSent) return next(erro);
     console.error('Falha ao processar requisição:', erro.code || erro.name || 'erro interno');

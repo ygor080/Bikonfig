@@ -457,6 +457,39 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Validação das requisições (etapa 18)
+
+As rotas do catálogo, orçamento, PDF, configurações e revisão administrativa
+validam os dados antes de executar seus controllers. IDs de produtos e
+configurações devem ser UUIDs; categorias usam slugs de até 80 caracteres.
+As regras de login e autorização continuam sendo aplicadas antes da validação.
+
+- Seleções aceitam até 100 aplicações de peças, com `id` e posição opcional
+  (`dianteira`, `traseira` ou `null`). A mesma peça pode ser usada em mais de
+  uma posição. UUIDs de peças são convertidos para minúsculas para corresponder
+  aos valores devolvidos pelo banco.
+- O orçamento aceita `itens`, o formato anterior `ids` ou ambos, desde que
+  correspondam na mesma ordem. Lista vazia continua válida para orçamento;
+  salvar e gerar PDF exigem ao menos uma peça. Campos extras são rejeitados:
+  preços e identidade do proprietário continuam sendo definidos no servidor.
+- Nomes de configurações têm limite de 100 caracteres; buscas, 200;
+  fabricante, 200; texto de especificações da revisão, 20.000. Textos livres
+  preservam Unicode, acentos e apóstrofos. Posições e tipos de montagem
+  aceitam apenas os valores previstos pela aplicação.
+- Os parsers JSON e de formulário limitam corpos a 64 KB; formulários aceitam
+  até 20 parâmetros e não interpretam estruturas aninhadas. JSON malformado
+  retorna 400, excesso de tamanho ou campos retorna 413, e codificação não
+  suportada retorna 415. As respostas não repetem o corpo recebido.
+- Login e cadastro também tratam requisições sem corpo, sem gerar erro interno.
+
+Execute `npm --prefix site test`. Os testes HTTP verificam rejeição antes
+dos controllers, limites dos parsers, rotas reais com controllers simulados,
+Unicode, normalização de UUIDs e uso da mesma peça nas duas rodas. Nenhuma
+migração ou nova variável de ambiente é necessária nesta etapa.
+
+Referências: [validação de entradas da OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)
+e [parsers do Express](https://expressjs.com/en/5x/api.html#express.json).
+
 ### Sessões e autenticação (etapa 17)
 
 - Sessões persistidas no PostgreSQL pelo `connect-pg-simple`, usando o pool já

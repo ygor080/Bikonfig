@@ -43,7 +43,7 @@ const authController = {
     },
 
     processarLogin: async (req, res) => {
-        const { usuario, senha } = req.body;
+        const { usuario, senha } = req.body || {};
 
         if (typeof usuario !== 'string' || typeof senha !== 'string' || !usuario.trim() || !senha || usuario.length > 254 || Buffer.byteLength(senha) > 72) {
             return res.render('login', { erro: 'Preencha usuário e senha.' });
@@ -65,7 +65,7 @@ const authController = {
     },
 
     processarCadastro: async (req, res) => {
-        const { nome, email, senha, confirmarSenha } = req.body;
+        const { nome, email, senha, confirmarSenha } = req.body || {};
 
         if (![nome, email, senha, confirmarSenha].every(valor => typeof valor === 'string') || email.length > 254 || Buffer.byteLength(senha) > 72) {
             return res.status(400).render('cadastro', { erro: 'Dados inválidos. A senha deve ter no máximo 72 bytes.', valores: {} });
