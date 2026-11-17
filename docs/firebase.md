@@ -166,7 +166,7 @@ da sessão. Erros não devolvem tokens, credenciais ou mensagens brutas do SDK.
 
 O login legado continua disponível durante a transição; desabilitar um
 usuário somente no Firebase não bloqueia automaticamente sua senha legada.
-A política final de desativação/corte será definida na migração da etapa 36.
+A política atual de desativação/corte está descrita em migracao-firebase.md (etapa 36).
 
 Validação desta etapa: 160 testes Node, com SDK simulado na fronteira para
 token, revogação e geração de cookies; Express, CSRF e sessões reais. A suíte
@@ -330,3 +330,18 @@ são recusados pelo manipulador Firebase. Esses passos reais dependem do
 projeto e da entrega de e-mail e não são comprovados pelos testes locais.
 
 Referência: [recuperação pelo Firebase](https://firebase.google.com/docs/auth/web/manage-users#send_a_password_reset_email).
+
+
+## Migração e transição — etapa 36
+
+A migração individual por comprovação dos dois acessos está em /migrar-conta.
+Ela preserva IDs, montagens e permissões, exige e-mail Firebase verificado
+e impede substituir vínculos. Contas migradas não aceitam mais login legado;
+sessões antigas são invalidadas. O padrão FIREBASE_LEGACY_ENABLED=true mantém
+a transição aberta para quem ainda não migrou. Não há migração em massa
+ou alteração automática do banco publicado.
+
+Consulte [procedimento e política de transição](migracao-firebase.md) para uso,
+diagnóstico, corte, reabertura e validação em homologação. As referências
+às próximas etapas nas seções anteriores registram a evolução do projeto;
+o procedimento da etapa 36 define a política atual de contas vinculadas.

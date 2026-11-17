@@ -52,6 +52,10 @@ const authController = {
         const user = await UsuarioModel.validarLogin(usuario.trim(), senha);
 
         if (user) {
+            if (req.app?.locals?.firebaseProjectId
+                && await require('../models/identidadeFirebaseModel').temVinculo(user.id, req.app.locals.firebaseProjectId)) {
+                return res.render('login', { erro: 'Esta conta já foi migrada. Entre pelo Firebase ou Google na tela principal de login.' });
+            }
             await autenticarSessao(req, user);
             res.redirect('/home');
         } else {

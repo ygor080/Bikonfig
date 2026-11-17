@@ -48,14 +48,20 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
 
     async function autenticar(req, res, cadastro = false) {
         const google = cadastro === 'google';
+        const migracao = cadastro === 'migrar';
         if (!config.habilitado) return res.status(503).json({ erro: 'Integração Firebase ainda desabilitada.', codigo: 'FIREBASE_DESABILITADO' });
         if (cadastro && !config.webHabilitado) return res.status(503).json({ erro: 'Cadastro Firebase ainda desabilitado.' });
-        if (!req.body || Array.isArray(req.body) || Object.keys(req.body).some(chave => !(cadastro && !google ? ['idToken', 'nome'] : ['idToken']).includes(chave))
+        const campos = migracao ? ['idToken', 'usuario', 'senha'] : cadastro && !google ? ['idToken', 'nome'] : ['idToken'];
+        if (!req.body || Array.isArray(req.body) || Object.keys(req.body).some(chave => !campos.includes(chave))
             || typeof req.body.idToken !== 'string' || !req.body.idToken.length || req.body.idToken.length > 16384) {
             return res.status(400).json({ erro: 'Informe apenas um ID token Firebase válido.' });
         }
         const nome = typeof req.body.nome === 'string' ? req.body.nome.trim() : '';
-        if (cadastro && !google && (nome.length < 3 || nome.length > 40)) return res.status(400).json({ erro: 'Informe um usuário entre 3 e 40 caracteres.' });
+        if (cadastro && !google && !migracao && (nome.length < 3 || nome.length > 40)) return res.status(400).json({ erro: 'Informe um usuário entre 3 e 40 caracteres.' });
+        if (migracao && (typeof req.body.usuario !== 'string' || !req.body.usuario.trim() || req.body.usuario.length > 40
+            || typeof req.body.senha !== 'string' || !req.body.senha || Buffer.byteLength(req.body.senha) > 72)) {
+            return res.status(400).json({ erro: 'Informe usuário e senha atuais válidos.' });
+        }
         let claims, sessionCookie;
         try {
             const sdk = obterAuth();
@@ -73,7 +79,15 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
         }
         let usuario;
         try {
-            if (google) {
+            if (migracao) {
+                if (!['password', 'google.com'].includes(claims.firebase?.sign_in_provider) || claims.email_verified !== true
+                    || typeof claims.email !== 'string' || claims.email.length > 254
+                    || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(claims.email.trim())) {
+                    return res.status(401).json({ erro: 'Confirme seu e-mail Firebase e entre novamente, ou use uma conta Google verificada.', codigo: 'EMAIL_VERIFICADO_NECESSARIO' });
+                }
+                usuario = await obterIdentidades().migrar(config.projectId, claims.uid,
+                    req.body.usuario.trim(), req.body.senha, claims.email.trim().toLowerCase());
+            } else if (google) {
                 if (claims.firebase?.sign_in_provider !== 'google.com' || claims.email_verified !== true
                     || typeof claims.email !== 'string' || claims.email.length > 254
                     || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(claims.email.trim())) {
@@ -94,6 +108,7 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
                 usuario = await obterIdentidades().cadastrar(config.projectId, claims.uid, nome, claims.email.trim().toLowerCase());
             } else usuario = await obterIdentidades().buscar(config.projectId, claims.uid);
         } catch (erro) {
+            if (erro.code === 'MIGRACAO_RECUSADA') return res.status(409).json({ erro: 'Confira o acesso antigo e use o mesmo e-mail da conta original. Vínculos existentes não podem ser substituídos.', codigo: 'MIGRACAO_RECUSADA' });
             if (erro.code === 'CADASTRO_CONFLITO') return res.status(409).json({ erro: 'Não foi possível concluir com esses dados. Se você já tinha uma conta, use o acesso anterior até a migração.', codigo: 'CADASTRO_CONFLITO' });
             return indisponivel(res);
         }
@@ -109,14 +124,23 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
         entrar: (req, res) => autenticar(req, res),
         cadastrar: (req, res) => autenticar(req, res, true),
         entrarGoogle: (req, res) => autenticar(req, res, 'google'),
+        migrar: (req, res) => autenticar(req, res, 'migrar'),
         configurar(req, res) {
             if (!config.habilitado || !config.webHabilitado) return res.status(404).json({ erro: 'Configuração web indisponível.' });
             res.json(config.publica);
         },
         async validarSessao(req, res, next) {
             const sessao = req.session.firebaseAuth;
-            if (!sessao || req.path === '/logout' && req.method === 'POST'
-                || ['/auth/firebase/session', '/auth/firebase/register', '/auth/firebase/google'].includes(req.path)) return next();
+            if (req.path === '/logout' && req.method === 'POST'
+                || ['/auth/firebase/session', '/auth/firebase/register', '/auth/firebase/google', '/auth/firebase/link'].includes(req.path)) return next();
+            if (!sessao) {
+                if (config.habilitado && req.session.user) {
+                    try {
+                        if (!config.legadoHabilitado || await obterIdentidades().temVinculo(req.session.user.id, config.projectId)) return invalidar(req, res);
+                    } catch { return indisponivel(res); }
+                }
+                return next();
+            }
             if (!config.habilitado || sessao.projectId !== config.projectId) return invalidar(req, res);
             let claims;
             try {

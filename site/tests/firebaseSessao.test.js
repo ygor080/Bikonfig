@@ -36,12 +36,18 @@ async function iniciar(t, habilitado = true, web = false) {
         estado.cadastro = args;
         if (estado.erroCadastro) throw estado.erroCadastro;
         return estado.novoUsuario || estado.usuario;
+    }, temVinculo: async () => estado.legadoVinculado === true,
+    migrar: async (...args) => {
+        estado.migracao = args;
+        if (estado.erroMigracao) throw estado.erroMigracao;
+        return estado.usuario;
     } } });
     app.use(firebase.validarSessao); app.use(require('../middleware/csrf'));
     app.get('/login', (req, res) => res.json({ csrf: res.locals.csrfToken }));
     app.post('/auth/firebase/session', firebase.entrar);
     app.post('/auth/firebase/register', firebase.cadastrar);
     app.post('/auth/firebase/google', firebase.entrarGoogle);
+    app.post('/auth/firebase/link', firebase.migrar);
     app.get('/auth/firebase/config', firebase.configurar);
     app.post('/legado', async (req, res) => { await sessao.autenticarSessao(req, estado.usuario); res.json({ ok: true }); });
     const contexto = { module: { exports: {} }, Buffer, require: nome => nome.includes('usuarioModel') ? {} : sessao };
@@ -211,4 +217,33 @@ test('Google não vincula automaticamente conta conflitante e permanece inativo 
     const desligado = await iniciar(t); await desligado.pagina();
     assert.equal((await desligado.pedir('/auth/firebase/google', { idToken: 'token' })).status, 503);
     assert.equal(desligado.estado.chamadas.length, 0);
+});
+
+
+test('migração exige CSRF, senha antiga, token recente e campos estritos antes de associar', async t => {
+    const r = await iniciar(t, true, true); await r.pagina();
+    const body = { idToken: 'token', usuario: 'antigo', senha: 'SenhaAntiga123!' };
+    assert.equal((await r.pedir('/auth/firebase/link', body, { 'x-csrf-token': '' })).status, 403);
+    assert.equal((await r.pedir('/auth/firebase/link', { ...body, usuarioId: 'outro' })).status, 400);
+    assert.equal((await r.pedir('/auth/firebase/link', { ...body, senha: '' })).status, 400);
+    r.estado.idClaims.firebase = { sign_in_provider: 'google.com' };
+    r.estado.idClaims.email_verified = false;
+    assert.equal((await r.pedir('/auth/firebase/link', body)).status, 401);
+    assert.equal(r.estado.migracao, undefined);
+    r.estado.idClaims.email_verified = true;
+    r.estado.erroMigracao = { code: 'MIGRACAO_RECUSADA' };
+    assert.equal((await r.pedir('/auth/firebase/link', body)).status, 409);
+    r.estado.erroMigracao = null;
+    assert.equal((await r.pedir('/auth/firebase/link', body)).status, 200);
+    assert.deepEqual(r.estado.migracao, [projeto, 'firebase-uid', 'antigo', 'SenhaAntiga123!', 'nao-usar@cliente.invalid']);
+});
+
+test('sessão legada é invalidada depois do vínculo, sem permitir contornar a senha Firebase', async t => {
+    const r = await iniciar(t); await r.pagina();
+    assert.equal((await r.pedir('/legado', {})).status, 200);
+    assert.equal((await r.pedir('/catalogo/api/privado')).status, 200);
+    r.estado.legadoVinculado = true;
+    const invalida = await r.pedir('/catalogo/api/privado');
+    assert.equal(invalida.status, 401); assert.equal((await invalida.json()).codigo, 'SESSAO_EXPIRADA');
+    assert.ok(!r.cookies.has('bikonfig.sid'));
 });

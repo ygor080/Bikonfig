@@ -43,3 +43,11 @@ test('pré-verificação de credencial confere chave RSA e projeto sem acesso re
     }
     assert.equal(verificarCredencial(config, {}).length, 1);
 });
+
+
+test('corte do acesso antigo exige interface Firebase ativa e flag válida', () => {
+    assert.throws(() => lerConfigFirebase({ ...ambiente(), FIREBASE_LEGACY_ENABLED: 'talvez' }));
+    assert.throws(() => lerConfigFirebase({ ...ambiente(), FIREBASE_LEGACY_ENABLED: 'false', FIREBASE_WEB_ENABLED: 'false' }));
+    assert.equal(lerConfigFirebase({ ...ambiente(), FIREBASE_LEGACY_ENABLED: 'false', FIREBASE_WEB_ENABLED: 'true' }).legadoHabilitado, false);
+    assert.equal(lerConfigFirebase(ambiente()).legadoHabilitado, true);
+});

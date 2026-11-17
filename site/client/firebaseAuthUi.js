@@ -22,6 +22,10 @@ function iniciar({ doc = document, criarCliente, consultar = fetch, navegar = ur
         require('./firebaseRecuperacaoUi').iniciarRecuperacao({ doc, obterCliente: cliente });
         return;
     }
+    if (form.dataset.operacao === 'migrar') {
+        require('./firebaseMigracaoUi').iniciarMigracao({ doc, obterCliente: cliente, consultar, navegar });
+        return;
+    }
     form.addEventListener('submit', async evento => {
         evento.preventDefault();
         if (ocupado || form.dataset.authBusy === 'true') return;

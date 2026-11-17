@@ -29,7 +29,8 @@
             <% } %>
             <p class="auth-google-aviso">Se você entra com Google, use o botão Entrar com Google. Contas antigas com usuário e senha ainda não migradas não têm a senha alterada por esta recuperação.</p>
             <p><a href="/login">Voltar para o login</a></p>
-            <p><a href="/login?legado=1">Acesso anterior com usuário e senha</a></p>
+            <% if (typeof legadoDisponivel === 'undefined' || legadoDisponivel) { %><p><a href="/login?legado=1">Acesso anterior com usuário e senha</a></p><% } %>
+            <% if (disponivel) { %><p><a href="/migrar-conta">Migrar minha conta antiga</a></p><% } %>
         </div>
     </main>
     <footer class="rodape"><div class="container"><p>Bikonfig - Configurador de bicicletas</p></div></footer>
