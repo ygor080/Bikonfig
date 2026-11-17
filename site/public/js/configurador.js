@@ -95,6 +95,66 @@ document.addEventListener('DOMContentLoaded', function () {
     const CATEGORIAS_MULTIPLAS = ['outros'];
 
     const selecionadas = Object.create(null);
+    const rascunhoEl = document.getElementById('configRascunho');
+    const contextoRascunho = new URLSearchParams(window.location.search).get('config') || null;
+    let rascunhos = null;
+    let recuperandoRascunho = false;
+    let recuperacaoFalhou = false;
+    try {
+        if (window.BikonfigRascunho && configMenu.dataset.usuarioId) {
+            rascunhos = window.BikonfigRascunho.criar(window.localStorage, configMenu.dataset.usuarioId);
+        }
+    } catch { informarRascunho('O navegador não permite guardar o progresso. Use Salvar para não perder a montagem.'); }
+
+    function informarRascunho(mensagem) { if (rascunhoEl) rascunhoEl.textContent = mensagem; }
+    function guardarRascunho() {
+        if (!rascunhos || recuperandoRascunho || recuperacaoFalhou || falhaAoAbrir) return;
+        try {
+            rascunhos.salvar(configuracaoEmEdicao || contextoRascunho, Object.values(selecionadas), tipoMontagemAtual());
+            informarRascunho('Progresso guardado neste navegador. Use Salvar para atualizar a montagem na sua conta.');
+        } catch { informarRascunho('Não foi possível guardar o progresso neste navegador. Use Salvar para não perder a montagem.'); }
+    }
+
+    async function recuperarRascunho() {
+        if (!rascunhos || falhaAoAbrir) return;
+        let dados;
+        try { dados = rascunhos.ler(contextoRascunho); }
+        catch { informarRascunho('Não foi possível ler o progresso deste navegador. Use Salvar para guardar a montagem.'); return; }
+        if (!dados) return;
+        try {
+            const categorias = new Set(Array.from(configMenu.querySelectorAll('.config-subitem-btn')).map(btn => btn.dataset.subcategoria));
+            const porCategoria = new Map();
+            for (const sub of new Set(dados.itens.map(item => item.subcategoria))) {
+                if (!categorias.has(sub)) continue;
+                const resposta = await fetch('/catalogo/api/pecas/' + encodeURIComponent(sub));
+                if (!resposta.ok) throw new Error('Falha ao consultar rascunho.');
+                const pecas = await resposta.json();
+                if (!Array.isArray(pecas)) throw new Error('Catálogo inválido.');
+                porCategoria.set(sub, new Map(pecas.map(peca => [peca.id, peca])));
+            }
+            const recuperadas = dados.itens.map(item => {
+                const peca = porCategoria.get(item.subcategoria)?.get(item.id);
+                return peca ? { ...peca, subcategoria: item.subcategoria, posicao: item.posicao } : null;
+            }).filter(Boolean);
+            Object.keys(selecionadas).forEach(key => delete selecionadas[key]);
+            document.querySelectorAll('#bikeSvg .parte-selecionada').forEach(el => el.classList.remove('parte-selecionada'));
+            recuperadas.forEach(peca => {
+                const chave = CATEGORIAS_MULTIPLAS.includes(peca.subcategoria) ? peca.subcategoria + '::' + peca.id
+                    : PECAS_DUAS_POSICOES.includes(peca.subcategoria) && peca.posicao ? peca.subcategoria + '::' + peca.posicao : peca.subcategoria;
+                selecionadas[chave] = peca;
+                destacarNaBike(peca.subcategoria);
+            });
+            if (tipoMontagemEl) tipoMontagemEl.value = dados.tipoMontagem;
+            atualizarCheckMenu();
+            atualizarOrcamento();
+            informarRascunho(recuperadas.length < dados.itens.length
+                ? 'Progresso recuperado parcialmente. Algumas peças não estão mais disponíveis; escolha substitutas antes de salvar.'
+                : 'Progresso recuperado deste navegador, com consulta aos preços atuais. Use Salvar para guardar na sua conta.');
+        } catch {
+            recuperacaoFalhou = true;
+            informarRascunho('Não foi possível recuperar o progresso. O rascunho foi preservado; recarregue para tentar novamente.');
+        }
+    }
 
     const posicaoAtivaPorSub = Object.create(null);
 
@@ -263,6 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         destacarNaBike(subcategoria);
         atualizarCheckMenu();
+        guardarRascunho();
         atualizarOrcamento();
     }
 
@@ -287,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         destacarNaBike(subcategoria);
         atualizarCheckMenu();
+        guardarRascunho();
         atualizarOrcamento();
     }
 
@@ -466,7 +528,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (btnAtualizarOrcamento) btnAtualizarOrcamento.addEventListener('click', atualizarOrcamento);
-    if (tipoMontagemEl) tipoMontagemEl.addEventListener('change', atualizarOrcamento);
+    if (tipoMontagemEl) tipoMontagemEl.addEventListener('change', function () { guardarRascunho(); atualizarOrcamento(); });
 
     btnLimpar.addEventListener('click', function () {
         Object.keys(selecionadas).forEach(key => delete selecionadas[key]);
@@ -476,6 +538,8 @@ document.addEventListener('DOMContentLoaded', function () {
             el.classList.remove('parte-selecionada');
         });
         atualizarCheckMenu();
+        recuperacaoFalhou = false;
+        guardarRascunho();
         atualizarOrcamento();
         listaPecasEl.innerHTML = '<p class="config-lista-vazio">Selecione uma categoria ao lado para ver as peças disponíveis.</p>';
         configMenu.querySelectorAll('.config-subitem-btn').forEach(b => b.classList.remove('ativo'));
@@ -529,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnSalvarConfig) {
         btnSalvarConfig.addEventListener('click', async function () {
-            if (salvandoConfiguracao || btnSalvarConfig.disabled || falhaAoAbrir) return;
+            if (salvandoConfiguracao || recuperandoRascunho || btnSalvarConfig.disabled || falhaAoAbrir) return;
             salvandoConfiguracao = true;
             try {
             const itens = Object.values(selecionadas).map(function (peca) {
@@ -559,10 +623,12 @@ document.addEventListener('DOMContentLoaded', function () {
             btnSalvarConfig.disabled = true;
 
             try {
+                const tipoEnviado = tipoMontagemAtual();
+                const estadoEnviado = JSON.stringify({ itens, tipoMontagem: tipoEnviado });
                 const resposta = await fetch('/catalogo/api/configuracoes' + (configuracaoEmEdicao ? '/' + encodeURIComponent(configuracaoEmEdicao) : ''), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoMontagemAtual() })
+                    body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoEnviado })
                 });
 
                 if (!resposta.ok) {
@@ -571,8 +637,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 const salva = await resposta.json();
+                const contextoAnterior = configuracaoEmEdicao || contextoRascunho;
                 configuracaoEmEdicao = salva.id;
                 nomeConfiguracao = salva.nome;
+                try {
+                    rascunhos?.remover(contextoAnterior);
+                    rascunhos?.remover(salva.id);
+                    recuperacaoFalhou = false;
+                    const estadoAtual = JSON.stringify({ itens: Object.values(selecionadas).map(peca => ({ id: peca.id, posicao: peca.posicao || null })), tipoMontagem: tipoMontagemAtual() });
+                    if (estadoAtual !== estadoEnviado) guardarRascunho();
+                    else informarRascunho('Montagem salva na sua conta.');
+                } catch { informarRascunho('Montagem salva na conta, mas o navegador não permitiu remover o rascunho local.'); }
                 indisponiveisNaAbertura = false;
                 if (indisponiveisEl) indisponiveisEl.textContent = '';
                 window.history?.replaceState(null, '', '/catalogo/configurador?config=' + encodeURIComponent(salva.id));
@@ -640,7 +715,7 @@ document.addEventListener('DOMContentLoaded', function () {
             nomeConfiguracao = dados.nome || '';
             indisponiveisNaAbertura = Boolean(dados.indisponiveis?.length);
             atualizarEstadoEdicao();
-            if (btnSalvarConfig) btnSalvarConfig.disabled = false;
+            if (btnSalvarConfig && !recuperandoRascunho) btnSalvarConfig.disabled = false;
         } catch (erro) {
             falhaAoAbrir = true;
             if (edicaoEl) edicaoEl.textContent = 'Não foi possível abrir a montagem. Recarregue a página para tentar novamente.';
@@ -684,11 +759,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const parametrosDaUrl = new URLSearchParams(window.location.search);
     const configuracaoDaUrl = parametrosDaUrl.get('config');
-    if (configuracaoDaUrl) {
-        carregarConfiguracaoSalva(configuracaoDaUrl);
-    } else if (parametrosDaUrl.get('produto')) {
-        carregarPecaDoCatalogo(parametrosDaUrl.get('produto'), parametrosDaUrl.get('subcategoria'));
+    async function iniciarSelecao() {
+        recuperandoRascunho = true;
+        const controles = [btnSalvarConfig, btnLimpar, btnBaixarPdf, tipoMontagemEl].filter(Boolean);
+        controles.forEach(el => { el.disabled = true; });
+        configMenu.inert = true;
+        try {
+            if (configuracaoDaUrl) await carregarConfiguracaoSalva(configuracaoDaUrl);
+            await recuperarRascunho();
+        } finally {
+            recuperandoRascunho = false;
+            controles.forEach(el => { el.disabled = false; });
+            if (btnSalvarConfig && falhaAoAbrir) btnSalvarConfig.disabled = true;
+            configMenu.inert = false;
+        }
+        if (!configuracaoDaUrl && parametrosDaUrl.get('produto')) {
+            await carregarPecaDoCatalogo(parametrosDaUrl.get('produto'), parametrosDaUrl.get('subcategoria'));
+        }
     }
+    iniciarSelecao();
 
     const primeiroGrupo = configMenu.querySelector('.config-grupo');
     if (primeiroGrupo) primeiroGrupo.classList.add('aberto');

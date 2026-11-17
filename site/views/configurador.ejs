@@ -30,7 +30,7 @@
     </header>
 
     <main class="config-wrapper">
-        <aside class="config-menu" id="configMenu">
+        <aside class="config-menu" id="configMenu" data-usuario-id="<%= usuario.id %>">
             <h2 class="config-menu-titulo">Peças</h2>
             <% categorias.forEach(function(grupo) { %>
                 <div class="config-grupo" data-grupo="<%= grupo.slug %>">
@@ -102,6 +102,7 @@
             <button type="button" class="btn-secundario" id="btnAtualizarOrcamento">Atualizar orçamento</button>
             <button type="button" class="btn-principal" id="btnLimparConfig">Limpar seleção</button>
             <p id="configEdicao" role="status" aria-live="polite"></p>
+            <p id="configRascunho" role="status" aria-live="polite">O progresso é recuperado neste navegador. Use Salvar para guardar a montagem na sua conta.</p>
             <button type="button" class="btn-secundario" id="btnSalvarConfig">
                 Salvar configuração
             </button>
@@ -118,6 +119,7 @@
     </footer>
 
     <script src="/js/conteudo-seguro.js"></script>
+    <script src="/js/rascunho-configuracao.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/configurador.js"></script>
 </body>

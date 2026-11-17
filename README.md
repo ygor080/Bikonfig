@@ -457,6 +457,40 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Recuperação automática do progresso (etapa 20)
+
+O configurador guarda um rascunho no `localStorage` a cada seleção, remoção,
+limpeza ou mudança do tipo de montagem. Ao reabrir a página na mesma conta
+e navegador, recupera o progresso e consulta os produtos e o orçamento atuais.
+Uma mensagem informa se o progresso foi guardado, recuperado ou se houve falha.
+**Salvar configuração / Salvar alterações** continua sendo necessário para
+gravar a montagem na conta e acessá-la em outro dispositivo.
+
+- Rascunhos separados por ID do usuário e ID da configuração; montagens novas
+  usam um contexto próprio. A edição carrega primeiro a montagem autorizada
+  pelo servidor e depois recupera seu rascunho local. Links de produtos
+  recuperam a montagem nova antes de adicionar a peça indicada.
+- Armazena apenas IDs, subcategorias, posições, tipo de montagem e data,
+  sem preços, imagens, senhas ou dados pessoais. Rascunhos com mais de sete
+  dias, formato inválido ou versão incompatível são descartados ao consultar.
+- Os produtos são consultados novamente por categoria. Peças não encontradas
+  ficam fora da seleção recuperada, com aviso; o rascunho original permanece
+  até uma nova alteração ou salvamento. Falha na consulta preserva o rascunho
+  e impede que alterações posteriores o sobrescrevam silenciosamente. Recarregue
+  para tentar recuperar; limpar a seleção inicia um rascunho vazio.
+- Salvar na conta remove o rascunho correspondente. Se houver alterações
+  durante a requisição, elas são mantidas em um novo rascunho associado à
+  configuração salva. Falhas ao salvar mantêm o rascunho existente.
+- Armazenamento bloqueado ou sem espaço não impede montar a bicicleta;
+  o aviso orienta salvar na conta. O progresso local não é sincronizado entre
+  dispositivos; limpar os dados do navegador o remove. Abas da mesma conta e
+  montagem compartilham o contexto: a última alteração local prevalece.
+
+Execute `npm --prefix site test`. Os testes de DOM cobrem recuperação após
+reabrir, isolamento por conta/montagem, posições, preços consultados novamente,
+limpeza, falhas de rede/armazenamento e mudanças durante o salvamento. Nenhuma
+migração, dependência nova ou variável de ambiente é necessária.
+
 ### Edição de configurações salvas (etapa 19)
 
 Em **Minhas configs**, escolha **Editar configuração**. A montagem abre com

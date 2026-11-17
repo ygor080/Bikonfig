@@ -15,7 +15,7 @@ const render = (nome, dados) => ejs.render(fs.readFileSync(path.join(views, nome
 
 function verificarDOM(document) {
     assert.equal(document.querySelectorAll('script:not([src])').length, 0);
-    const scriptsPermitidos = ['/js/conteudo-seguro.js', '/js/app.js', '/js/configurador.js', '/js/auth.js'];
+    const scriptsPermitidos = ['/js/conteudo-seguro.js', '/js/rascunho-configuracao.js', '/js/app.js', '/js/configurador.js', '/js/auth.js'];
     document.querySelectorAll('script[src]').forEach(script => assert.ok(scriptsPermitidos.includes(script.getAttribute('src'))));
     for (const element of document.querySelectorAll('*')) {
         for (const attr of element.attributes) {
