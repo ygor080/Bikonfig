@@ -11,6 +11,8 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     // Render encerra o HTTPS no proxy imediatamente à frente do servidor.
     if (env.NODE_ENV === 'production') app.set('trust proxy', 1);
     app.use(require('./middleware/segurancaConteudo'));
+    // Sem sessão: os probes do Render não devem criar ou consultar cookies.
+    app.get('/healthz', require('./middleware/saude').criarVerificacaoSaude(pool));
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
     app.use(parsersRequisicao());

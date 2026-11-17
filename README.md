@@ -29,8 +29,9 @@ e vazio, rode:
 psql "$DATABASE_URL" -f database/schema.sql
 ```
 
-Rodar de novo é seguro — todo `INSERT` usa `ON CONFLICT DO NOTHING` e
-nenhuma tabela existente é recriada (`CREATE TABLE IF NOT EXISTS`).
+Para um banco existente, aplique as migrações pendentes de
+`database/migrations/` em ordem. O schema completo também contém ajustes
+de categorias e regras; reserve-o para inicializar uma base nova.
 
 ### 2. Variáveis de ambiente
 
@@ -456,6 +457,23 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 `views/minhas-configuracoes.ejs` ou `views/admin-revisao.ejs`).
 
 ## ⚠️ Segurança
+
+### Banco e verificação de produção (etapa 23)
+
+Execute `npm --prefix site run check:production` no ambiente do deploy para
+conferir variáveis, colunas esperadas e sessões sem alterar dados ou revelar
+segredos. Para a conexão local, use `npm --prefix site run check:production -- --local`.
+O comando retorna código 1 quando encontra pendências.
+
+A rota `/healthz` verifica conexão com o banco sem autenticação e sem
+cookies: 200 quando disponível, 503 em falha ou timeout. Configure esse
+caminho como health check no Render depois de publicar a alteração.
+O pool limita conexão e consulta a três segundos.
+
+Consulte [docs/producao.md](docs/producao.md) para comandos, configurações,
+evidências verificadas e limites da validação. A conexão local passou na
+inspeção de colunas e sessões; as variáveis do painel do Render não foram
+inspecionadas. Nenhuma migração foi executada nesta etapa.
 
 ### Usabilidade e uso no celular (etapa 22)
 

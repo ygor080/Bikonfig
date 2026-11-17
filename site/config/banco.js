@@ -12,6 +12,8 @@ if (!/^postgres(ql)?:\/\//i.test(connectionString)) {
 
 const pool = new Pool({
     connectionString,
+    connectionTimeoutMillis: 3000,
+    query_timeout: 3000,
     ssl: { rejectUnauthorized: false }
 });
 

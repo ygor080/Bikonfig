@@ -73,6 +73,17 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     }
     let montagem;
 
+    await t.test('diagnóstico lê estrutura e identifica migração faltante; healthz não cria sessão', async () => {
+        const { verificarBanco } = require('../config/verificacaoProducao');
+        assert.deepEqual((await verificarBanco(pool)).pendencias, []);
+        await db.exec('BEGIN; ALTER TABLE products DROP COLUMN price_checked_at;');
+        try { assert.ok((await verificarBanco(pool)).pendencias.some(p => p.includes('products.price_checked_at'))); }
+        finally { await db.exec('ROLLBACK'); }
+        const saude = await dono.pedir('/healthz');
+        assert.equal(saude.status, 200); assert.equal(saude.headers.get('set-cookie'), null);
+        assert.deepEqual(await saude.json(), { status: 'ok' });
+    });
+
     await t.test('anônimo não acessa catálogo; assets e política de conteúdo são servidos fora da pasta site', async () => {
         const resposta = await dono.pedir('/catalogo');
         assert.equal(resposta.status, 302); assert.equal(resposta.headers.get('location'), '/login');
