@@ -462,6 +462,19 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Rodapé no fim da janela (etapa 29)
+
+O layout global usa uma coluna flexível com altura mínima da janela, incluindo
+`100dvh` nos navegadores compatíveis e fallback para `100vh`. O conteúdo
+principal ocupa o espaço disponível; cabeçalho e rodapé preservam sua altura.
+Assim, páginas curtas mantêm o rodapé no fim da janela, e páginas longas
+posicionam o rodapé após o conteúdo. A largura dos containers e o espaço
+dos atalhos inferiores do configurador são preservados.
+
+Verificação local no Chrome: página curta, login, catálogo longo e
+configurador em 320, 390 e 1280 px, totalizando 12 cenários sem sobreposição
+do rodapé ao conteúdo ou rolagem horizontal. Sem migração ou configuração nova.
+
 ### Validação final e documentação (etapa 28)
 
 O comando `npm --prefix site run check:published` verifica sete rotas públicas
