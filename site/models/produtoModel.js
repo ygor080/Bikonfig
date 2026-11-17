@@ -1,4 +1,5 @@
 const { pool } = require('../config/banco');
+const { urlImagemSegura, urlExternaSegura } = require('../public/js/conteudo-seguro');
 
 const CAMPOS_PRODUTO = `
     p.id,
@@ -118,16 +119,18 @@ const ICONE_PADRAO = {
 };
 
 function imagemPadrao(produto) {
-    return ICONE_PADRAO[produto.subcategoria || produto.categoria_atual]
-        || ICONE_PADRAO[produto.categoria]
+    const subcategoria = produto.subcategoria || produto.categoria_atual;
+    return (Object.hasOwn(ICONE_PADRAO, subcategoria) && ICONE_PADRAO[subcategoria])
+        || (Object.hasOwn(ICONE_PADRAO, produto.categoria) && ICONE_PADRAO[produto.categoria])
         || '/img/pecas/quadro.svg';
 }
 
 function normalizarProduto(produto) {
     if (!produto) return null;
     const imagemFallback = imagemPadrao(produto);
-    const imagem = produto.imagem || imagemFallback;
-    return { ...produto, imagem, imagemFallback, preco: Number(produto.preco), aro: produto.aro == null ? null : String(produto.aro).trim() };
+    const imagem = urlImagemSegura(produto.imagem, imagemFallback);
+    return { ...produto, imagem, imagemFallback, link: urlExternaSegura(produto.link),
+        preco: Number(produto.preco), aro: produto.aro == null ? null : String(produto.aro).trim() };
 }
 
 const normalizarSpec = require('./normalizarSpec');
@@ -223,7 +226,8 @@ class ProdutoModel {
             WHERE p.needs_review = true
             ORDER BY p.ai_confidence ASC NULLS FIRST, p.created_at DESC
         `);
-        return rows.map(p => ({ ...p, imagemFallback: imagemPadrao(p), preco: Number(p.preco) }));
+        return rows.map(p => ({ ...p, imagemFallback: imagemPadrao(p), imagem: urlImagemSegura(p.imagem, imagemPadrao(p)),
+            product_url: urlExternaSegura(p.product_url), preco: Number(p.preco) }));
     }
 
     static async listarCategoriasFlat() {

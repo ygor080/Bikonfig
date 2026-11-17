@@ -58,6 +58,7 @@ test('valores ausentes, inválidos e medidas ambíguas não viram comparações 
 test('regras e verificação adicional de aro usam a mesma normalização, sem modificar produtos', async () => {
     for (const regras of [[], [{ category_a: 'quadro', category_b: 'rodas', spec_key: 'aro', description: 'Aros diferentes' }]]) {
         const contexto = { module: { exports: {} }, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
             if (nome === '../config/banco') return { pool: { query: async () => ({ rows: regras }) } };
             if (nome === './normalizarSpec') return normalizar;
             return require(nome === '../config/produtoPublicavel' ? '../config/produtoPublicavel' : '../config/produtoDisponivel');

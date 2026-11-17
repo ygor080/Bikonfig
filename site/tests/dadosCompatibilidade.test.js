@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const regra = { category_a: 'quadro', category_b: 'pneus', spec_key: 'aro', description: 'Aros divergentes' };
 function preparar(regras = [regra]) {
-    const contexto = { module: { exports: {} }, require: nome => nome === '../config/banco'
+    const contexto = { module: { exports: {} }, require: nome => nome === '../public/js/conteudo-seguro' ? require('../public/js/conteudo-seguro') : nome === '../config/banco'
         ? { pool: { query: async () => ({ rows: regras }) } }
         : nome === './normalizarSpec' ? require('../models/normalizarSpec') : require(nome === '../config/produtoPublicavel' ? '../config/produtoPublicavel' : '../config/produtoDisponivel') };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../models/produtoModel.js'), 'utf8'), contexto);

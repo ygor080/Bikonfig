@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 function carregar(arquivo, dependencias) {
-    const contexto = { module: { exports: {} }, require: nome => dependencias[nome] };
+    const contexto = { module: { exports: {} }, require: nome => nome === '../public/js/conteudo-seguro' ? require('../public/js/conteudo-seguro') : dependencias[nome] };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, arquivo), 'utf8'), contexto);
     return contexto.module.exports;
 }

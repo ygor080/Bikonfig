@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const configMenu = document.getElementById('configMenu');
     if (!configMenu) return;
+    const { textoSeguro, urlImagemSegura } = window.BikonfigConteudoSeguro;
 
     const listaPecasEl = document.getElementById('configListaPecas');
     const orcamentoListaEl = document.getElementById('orcamentoLista');
@@ -82,9 +83,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const CATEGORIAS_MULTIPLAS = ['outros'];
 
-    const selecionadas = {};
+    const selecionadas = Object.create(null);
 
-    const posicaoAtivaPorSub = {};
+    const posicaoAtivaPorSub = Object.create(null);
 
     configMenu.querySelectorAll('.config-grupo-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -104,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
             listaPecasEl.innerHTML = '<p class="config-lista-vazio">Carregando peças...</p>';
 
             try {
-                const resposta = await fetch('/catalogo/api/pecas/' + subcategoria);
+                const resposta = await fetch('/catalogo/api/pecas/' + encodeURIComponent(subcategoria));
                 const pecas = await resposta.json();
                 renderizarListaPecas(pecas, subcategoria, nomeSub);
             } catch (erro) {
@@ -117,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const duasPosicoes = PECAS_DUAS_POSICOES.includes(subcategoria);
 
         if (!pecas.length) {
-            listaPecasEl.innerHTML = '<p class="config-lista-vazio">Nenhuma peça cadastrada para ' + nomeSub + ' ainda.</p>';
+            listaPecasEl.innerHTML = '<p class="config-lista-vazio">Nenhuma peça cadastrada para ' + textoSeguro(nomeSub) + ' ainda.</p>';
             return;
         }
 
@@ -132,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const cabecalho = document.createElement('div');
         cabecalho.className = 'config-lista-topo';
         cabecalho.innerHTML =
-            '<h3 class="config-lista-titulo">' + nomeSub + '</h3>' +
+            '<h3 class="config-lista-titulo">' + textoSeguro(nomeSub) + '</h3>' +
             '<p class="config-posicao-aviso">Essa peça não vem separada por lado no catálogo — escolha uma vez para a roda da frente e uma vez para a de trás. Pode ser o mesmo produto (ex: pneu, câmara de ar) ou produtos diferentes (ex: disco de freio, que costuma ser maior na dianteira).</p>' +
             '<div class="config-posicao-switch">' +
                 '<button type="button" class="config-posicao-btn" data-posicao="dianteira">Dianteira <span class="config-posicao-check" data-posicao-check="dianteira"></span></button>' +
@@ -167,10 +168,6 @@ document.addEventListener('DOMContentLoaded', function () {
         renderizarGrid(pecas, subcategoria, nomeSub, posicaoAtivaPorSub[subcategoria], gridWrapper);
     }
 
-    const textoSeguro = valor => String(valor).replace(/[&<>"']/g, caractere => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[caractere]);
-
     function dataConsultaPreco(valor) {
         const data = valor ? new Date(valor) : null;
         return data && !Number.isNaN(data.getTime())
@@ -197,12 +194,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const dataEstoque = consultaEstoque && !Number.isNaN(consultaEstoque.getTime())
                     ? consultaEstoque.toISOString().slice(0, 10) : null;
                 return (
-                    '<div class="produto-card config-produto-card' + (ativo ? ' selecionado' : '') + '" data-id="' + peca.id + '">' +
+                    '<div class="produto-card config-produto-card' + (ativo ? ' selecionado' : '') + '" data-id="' + textoSeguro(peca.id) + '">' +
                         (peca.opcional ? '<span class="tag-opcional">opcional</span>' : '') +
-                        '<div class="produto-imagem"><img src="' + textoSeguro(peca.imagem || peca.imagemFallback || '/img/pecas/quadro.svg')
-                            + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
+                        '<div class="produto-imagem"><img src="' + textoSeguro(urlImagemSegura(peca.imagem, peca.imagemFallback))
+                            + '" data-imagem-fallback="' + textoSeguro(urlImagemSegura(null, peca.imagemFallback))
                             + '" alt="' + textoSeguro(peca.nome) + '"></div>' +
-                        '<h3>' + peca.nome + '</h3>' +
+                        '<h3>' + textoSeguro(peca.nome) + '</h3>' +
                         (peca.variante_id ? '<p class="loja">Variação: ' + textoSeguro(peca.variante || 'Padrão') + '</p>' : '') +
                         (peca.sku ? '<p class="loja">SKU: ' + textoSeguro(peca.sku) + '</p>' : '') +
                         '<p class="preco">R$ ' + peca.preco.toFixed(2) + '</p>' +
@@ -213,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             : peca.em_estoque === false ? 'Sem estoque na última coleta' : 'Disponibilidade desconhecida') + '</p>' +
                         (dataEstoque ? '<p class="loja">Consulta de estoque: ' + dataEstoque + '</p>' : '') +
                         (peca.aro ? '<p class="fabricante">Aro: ' + textoSeguro(peca.aro) + '</p>' : '') +
-                        '<button type="button" class="btn-adicionar" data-selecionar="' + peca.id + '">' +
+                        '<button type="button" class="btn-adicionar" data-selecionar="' + textoSeguro(peca.id) + '">' +
                             (ativo ? (multipla ? 'Selecionado ✓ (remover)' : 'Selecionado ✓') : 'Selecionar') +
                         '</button>' +
                     '</div>'
@@ -291,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ['parte-freios-d', 'parte-freios-t'].forEach(marcarPecaSvg);
             return;
         }
-        const idSvg = MAPA_SVG[subcategoria];
+        const idSvg = Object.hasOwn(MAPA_SVG, subcategoria) ? MAPA_SVG[subcategoria] : null;
         if (idSvg) marcarPecaSvg(idSvg);
     }
 
@@ -378,8 +375,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const idsIndisponiveis = new Set(indisponiveis);
         orcamentoListaEl.innerHTML = entradas.map(function (peca) {
             const rotulo = peca.posicao === 'dianteira' ? ' (dianteira)' : peca.posicao === 'traseira' ? ' (traseira)' : '';
-            return '<li><img class="orcamento-icone" src="' + textoSeguro(peca.imagem || peca.imagemFallback || '/img/pecas/quadro.svg')
-                + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
+            return '<li><img class="orcamento-icone" src="' + textoSeguro(urlImagemSegura(peca.imagem, peca.imagemFallback))
+                + '" data-imagem-fallback="' + textoSeguro(urlImagemSegura(null, peca.imagemFallback))
                 + '" alt=""><span>' + textoSeguro(peca.nome + rotulo) + '<small class="consulta-preco">'
                 + textoSeguro(dataConsultaPreco(peca.preco_verificado_em)) + '</small></span><span>'
                 + (idsIndisponiveis.has(peca.id) ? 'Indisponível — fora do total' : 'R$ ' + peca.preco.toFixed(2)) + '</span></li>';
@@ -567,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function carregarConfiguracaoSalva(id) {
         try {
-            const resposta = await fetch('/catalogo/api/configuracoes/' + id);
+            const resposta = await fetch('/catalogo/api/configuracoes/' + encodeURIComponent(id));
             if (!resposta.ok) throw new Error('Configuração não encontrada.');
             const dados = await resposta.json();
 

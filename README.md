@@ -123,6 +123,39 @@ novas regras.
 
 ## Front-end
 
+### Renderização segura de dados externos (etapa 16)
+
+`site/public/js/conteudo-seguro.js` compartilha as regras entre o servidor
+e o configurador. Texto interpolado no HTML recebe escape de entidades,
+inclusive nomes de produtos/categorias, identificadores e atributos.
+Avisos, confirmações, nomes salvos e mensagens continuam usando
+`textContent`/`value` ou o escape padrão `<%= ... %>` do EJS. O slot
+`<%- conteudo %>` do layout é reservado a HTML de templates internos,
+nunca a strings recebidas de usuários, lojas ou APIs.
+
+Links externos só aceitam URLs absolutas HTTP/HTTPS sem credenciais,
+caracteres de controle ou barras invertidas. Imagens aceitam esses URLs
+ou os ícones locais conhecidos. Protocolos como `javascript:`, `data:`
+e `vbscript:` não chegam aos atributos. Imagens inválidas usam o ícone
+local; links de compra inválidos ficam indisponíveis, inclusive na
+consulta usada pelo PDF. Nomes e descrições não são alterados no banco:
+a proteção é aplicada na saída, sem dupla codificação dos dados.
+
+O middleware `segurancaConteudo` define CSP com scripts apenas da própria
+origem, sem scripts inline, objetos ou formulários para outras origens,
+e envia `X-Content-Type-Options: nosniff`. Fontes Google e imagens HTTP/HTTPS
+continuam permitidas conforme os recursos usados pelo site. A CSP é uma
+camada adicional; não substitui o escape e a validação de URLs.
+
+Execute `npm --prefix site install` e depois `npm --prefix site test`.
+Os testes incluem o DOM via jsdom e templates EJS reais, com cargas de
+injeção em textos, IDs, URLs, avisos, diálogos e montagens reabertas.
+O jsdom é dependência apenas de desenvolvimento e requer Node LTS
+compatível (20.19, 22.12 ou 24 e suas atualizações suportadas).
+Esta etapa não exige migração do banco nem altera autenticação ou sessões.
+
+Referência: [OWASP: prevenção de XSS](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet).
+
 ### Coleta agendada e data dos preços (etapa 15)
 
 A rotina diária está em `.github/workflows/coleta-precos.yml`. O horário

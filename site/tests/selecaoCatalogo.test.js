@@ -41,7 +41,7 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
             getElementById: id => elementos[id] || null,
             querySelectorAll: () => [], createElement: elemento
         },
-        window: { location: { search: query ?? `?produto=produto-1&subcategoria=${subcategoria}` } },
+        window: { BikonfigConteudoSeguro: require('../public/js/conteudo-seguro'), location: { search: query ?? `?produto=produto-1&subcategoria=${subcategoria}` } },
         URLSearchParams, console: { error() {} },
         Bikonfig: { toast: mensagem => avisos.push(mensagem), promptDialog: async () => 'Montagem' },
         fetch: async (url, opcoes) => {

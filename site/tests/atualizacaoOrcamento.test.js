@@ -30,7 +30,7 @@ function preparar() {
             getElementById: id => id === 'configCompatibilidade' ? null : elemento(id), querySelectorAll: () => [],
             createElement: () => elemento(Symbol())
         },
-        window: { location: { search: '' } }, URLSearchParams,
+        window: { BikonfigConteudoSeguro: require('../public/js/conteudo-seguro'), location: { search: '' } }, URLSearchParams,
         console: { error() {} },
         fetch: (url, opcoes) => {
             const espera = pendente();

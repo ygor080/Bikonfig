@@ -56,7 +56,12 @@
                         <div class="admin-card__topo">
                             <img class="admin-card__imagem" src="<%= p.imagem || p.imagemFallback %>" data-imagem-fallback="<%= p.imagemFallback %>" alt="<%= p.nome %>">
                             <div class="admin-card__info">
-                                <a href="<%= p.product_url %>" target="_blank" rel="noopener noreferrer" class="admin-card__nome"><%= p.nome %></a>
+                                <% if (p.product_url) { %>
+                                    <a href="<%= p.product_url %>" target="_blank" rel="noopener noreferrer" class="admin-card__nome"><%= p.nome %></a>
+                                <% } else { %>
+                                    <span class="admin-card__nome"><%= p.nome %></span>
+                                    <p class="admin-card__meta">Link do produto indisponível.</p>
+                                <% } %>
                                 <% if (p.variante_id) { %><p class="admin-card__meta">Variação: <%= p.variante || 'Padrão' %> · ID: <%= p.variante_id %></p><% } %>
                                 <% if (p.sku) { %><p class="admin-card__meta">SKU: <%= p.sku %></p><% } %>
                                 <% if (p.manual_reviewed_at) { %>

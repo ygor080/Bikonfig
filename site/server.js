@@ -8,6 +8,7 @@ const catalogoRoutes = require('./routes/catalogoRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
+app.use(require('./middleware/segurancaConteudo'));
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));

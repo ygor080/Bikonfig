@@ -9,6 +9,7 @@ const selecionavel = require('../config/produtoDisponivel');
 test('produto ativo não é usado como evidência de estoque', async () => {
     const consultas = [];
     const contexto = { module: { exports: {} }, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
         if (nome === '../config/banco') return { pool: { query: async sql => {
             consultas.push(sql);
             return { rows: [{ id: 'p', ativo: true, em_estoque: null, preco: 10, aro: null }] };
@@ -29,6 +30,7 @@ test('produto ativo não é usado como evidência de estoque', async () => {
 function controller(produtos) {
     let salvou = false;
     const contexto = { module: { exports: {} }, console, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
         if (nome === '../models/completudeMontagem') return require('../models/completudeMontagem');
         if (nome === '../models/produtoModel') return {
             buscarVariosPorId: async ids => produtos.filter(p => ids.includes(p.id)),

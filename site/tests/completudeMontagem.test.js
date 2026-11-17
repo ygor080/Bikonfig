@@ -99,6 +99,7 @@ test('tipo de montagem inválido é rejeitado', () => {
 
 test('orçamento avalia apenas produtos disponíveis e aceita seleção vazia', async () => {
     const contexto = { module: { exports: {} }, console, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
         if (nome === '../models/completudeMontagem') return require('../models/completudeMontagem');
         if (nome === '../models/produtoModel') return {
             buscarVariosPorId: async () => [{ ...p('quadro'), preco: 100 }],
@@ -122,7 +123,7 @@ test('orçamento avalia apenas produtos disponíveis e aceita seleção vazia', 
 test('modelo persiste tipo de montagem e conserva isolamento por usuário na reabertura', async () => {
     const consultas = [];
     const query = async (sql, valores) => { consultas.push({ sql, valores }); return { rows: [{ id: 'c', nome: 'Bike', tipo_montagem: 'single-speed' }] }; };
-    const contexto = { module: { exports: {} }, require: nome => nome === '../config/banco'
+    const contexto = { module: { exports: {} }, require: nome => nome === '../public/js/conteudo-seguro' ? require('../public/js/conteudo-seguro') : nome === '../config/banco'
         ? { pool: { connect: async () => ({ query, release() {} }), query } } : '' };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../models/configuracaoModel.js'), 'utf8'), contexto);
     await contexto.module.exports.salvar('u', 'Bike', [], 'single-speed');

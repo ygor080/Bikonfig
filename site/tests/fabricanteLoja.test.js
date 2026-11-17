@@ -7,6 +7,7 @@ const vm = require('node:vm');
 function modelo(rows = []) {
     const consultas = [];
     const contexto = { module: { exports: {} }, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
         if (nome === '../config/banco') return { pool: { query: async (sql, valores) => {
             consultas.push({ sql, valores }); return { rows };
         } } };

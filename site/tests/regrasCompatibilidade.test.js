@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const regra = (a, b, campo) => ({ category_a: a, category_b: b, spec_key: campo, description: 'Valores divergentes.' });
 function preparar(regras) {
     const contexto = { module: { exports: {} }, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
         if (nome === '../config/banco') return { pool: { query: async () => ({ rows: regras }) } };
         if (nome === './normalizarSpec') return require('../models/normalizarSpec');
         return require(nome === '../config/produtoPublicavel' ? '../config/produtoPublicavel' : '../config/produtoDisponivel');

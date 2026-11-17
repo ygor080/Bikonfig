@@ -103,6 +103,7 @@ test('modelo fornece ícones existentes para catálogo, configurador e revisão'
         { id: '3', subcategoria: 'desconhecida', categoria_atual: 'desconhecida', imagem: null, preco: 10 }
     ];
     const contexto = { module: { exports: {} }, require: nome => {
+        if (nome === '../public/js/conteudo-seguro') return require('../public/js/conteudo-seguro');
         if (nome === '../config/banco') return { pool: { query: async () => ({ rows }) } };
         if (nome === './normalizarSpec') return require('../models/normalizarSpec');
         return require(nome === '../config/produtoPublicavel' ? '../config/produtoPublicavel' : '../config/produtoDisponivel');
