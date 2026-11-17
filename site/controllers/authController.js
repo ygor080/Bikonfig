@@ -1,4 +1,5 @@
 const UsuarioModel = require('../models/usuarioModel');
+const { autenticarSessao, NOME_COOKIE } = require('../config/sessao');
 
 const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -44,14 +45,14 @@ const authController = {
     processarLogin: async (req, res) => {
         const { usuario, senha } = req.body;
 
-        if (!usuario || !senha) {
+        if (typeof usuario !== 'string' || typeof senha !== 'string' || !usuario.trim() || !senha || usuario.length > 254 || Buffer.byteLength(senha) > 72) {
             return res.render('login', { erro: 'Preencha usuário e senha.' });
         }
 
         const user = await UsuarioModel.validarLogin(usuario.trim(), senha);
 
         if (user) {
-            req.session.user = user;
+            await autenticarSessao(req, user);
             res.redirect('/home');
         } else {
             res.render('login', { erro: 'Usuário ou senha inválidos.' });
@@ -65,6 +66,10 @@ const authController = {
 
     processarCadastro: async (req, res) => {
         const { nome, email, senha, confirmarSenha } = req.body;
+
+        if (![nome, email, senha, confirmarSenha].every(valor => typeof valor === 'string') || email.length > 254 || Buffer.byteLength(senha) > 72) {
+            return res.status(400).render('cadastro', { erro: 'Dados inválidos. A senha deve ter no máximo 72 bytes.', valores: {} });
+        }
 
         const erroValidacao = validarCadastro({ nome, email, senha, confirmarSenha });
         if (erroValidacao) {
@@ -83,12 +88,14 @@ const authController = {
             });
         }
 
-        req.session.user = resultado.usuario;
+        await autenticarSessao(req, resultado.usuario);
         res.redirect('/home');
     },
 
-    logout: (req, res) => {
-        req.session.destroy(() => {
+    logout: (req, res, next) => {
+        req.session.destroy(erro => {
+            if (erro) return next(erro);
+            res.clearCookie(NOME_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax', secure: req.app.get('env') === 'production' });
             res.redirect('/login');
         });
     }

@@ -457,6 +457,41 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Sessões e autenticação (etapa 17)
+
+- Sessões persistidas no PostgreSQL pelo `connect-pg-simple`, usando o pool já
+  configurado. A tabela `sessoes_site` e seu índice são criados automaticamente
+  no primeiro uso; o usuário do banco precisa de permissão para criá-los. Não é
+  necessário executar SQL manualmente. Sessões expiradas são limpas pelo store.
+- `SECRET` deve conter pelo menos 32 bytes aleatórios, sem o texto de exemplo.
+  Gere uma chave com `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+  e configure-a no ambiente, sem incluí-la no Git. Todos os processos devem usar
+  o mesmo segredo. O servidor recusa iniciar com configuração inválida.
+- No Render, configure `NODE_ENV=production`: cookie `bikonfig.sid` com
+  `HttpOnly`, `SameSite=Lax`, duração de uma hora e `Secure` (apenas HTTPS).
+  Em desenvolvimento HTTP local, use `NODE_ENV=development`. Produção confia
+  em um proxy imediatamente à frente do servidor, conforme a topologia do
+  Render; reveja essa configuração se mudar a infraestrutura.
+- Login e cadastro renovam o identificador e aguardam a persistência antes
+  do redirecionamento. Apenas os campos de identidade são salvos, sem senha.
+  Logout destrói a sessão e remove o cookie. Cookies antigos `connect.sid`
+  deixam de ser usados; usuários precisarão entrar novamente após a atualização.
+- Login e cadastro compartilham limite de 15 requisições por IP a cada
+  15 minutos, com resposta HTTP 429 e `Retry-After`. O contador fica em memória
+  por processo e reinicia junto com ele; múltiplas instâncias exigem um store
+  compartilhado para um limite global. Redes compartilhadas dividem o limite.
+- Entradas de autenticação com tipos inválidos são rejeitadas, assim como
+  senhas acima de 72 bytes, para evitar truncamento silencioso do bcrypt.
+
+Validação: `npm --prefix site test`, com testes HTTP de renovação, invalidação,
+limite e cookies, além do contrato do store PostgreSQL com pool simulado.
+Esses testes não acessam o banco real. A tabela será criada quando o código
+atualizado atender sessões; nenhuma alteração de banco foi executada nesta etapa.
+
+Referências: [express-session](https://expressjs.com/en/resources/middleware/session/),
+[connect-pg-simple](https://github.com/voxpelli/node-connect-pg-simple),
+[express-rate-limit](https://express-rate-limit.mintlify.app/reference/configuration).
+
 Nenhum `.env` real é incluído neste projeto — só os `.env.example`. Se
 alguma chave (ex: OpenAI) tiver sido exposta em algum momento, revogue-a e
 gere uma nova antes de reusar o projeto.

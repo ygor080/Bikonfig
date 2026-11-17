@@ -8,6 +8,9 @@ const catalogoRoutes = require('./routes/catalogoRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
+app.disable('x-powered-by');
+// Render encerra o HTTPS no proxy imediatamente à frente do servidor.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 app.use(require('./middleware/segurancaConteudo'));
 
 app.set('view engine', 'ejs');
@@ -17,12 +20,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-app.use(session({
-    secret: process.env.SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 3600000 }
-}));
+const { opcoesSessao } = require('./config/sessao');
+const PgSession = require('connect-pg-simple')(session);
+const { pool } = require('./config/banco');
+const opcoes = opcoesSessao(process.env);
+opcoes.store = new PgSession({ pool, tableName: 'sessoes_site', createTableIfMissing: true });
+app.use(session(opcoes));
 
 app.use('/', authRoutes);
 app.use('/catalogo', catalogoRoutes);
@@ -44,6 +47,12 @@ app.get('/home', (req, res) => {
         usuario: req.session.user,
         titulo: 'Home - Bikonfig'
     });
+});
+
+app.use((erro, req, res, next) => {
+    if (res.headersSent) return next(erro);
+    console.error('Falha ao processar requisição:', erro.code || erro.name || 'erro interno');
+    res.status(500).send('Não foi possível concluir a solicitação. Tente novamente mais tarde.');
 });
 
 async function iniciar() {
