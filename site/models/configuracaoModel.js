@@ -2,6 +2,29 @@ const { pool } = require('../config/banco');
 const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
 
 class ConfiguracaoModel {
+    static async atualizar(id, usuarioId, nome, itens, tipoMontagem = 'com-marchas') {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // O UPDATE autoriza e bloqueia a montagem antes de substituir seus itens.
+            const { rows } = await client.query(
+                'UPDATE configuracoes SET nome = $3, tipo_montagem = $4 WHERE id = $1 AND usuario_id = $2 RETURNING id, nome',
+                [id, usuarioId, nome, tipoMontagem]
+            );
+            if (!rows.length) { await client.query('ROLLBACK'); return null; }
+            await client.query('DELETE FROM configuracao_itens WHERE configuracao_id = $1', [id]);
+            for (const item of itens) {
+                await client.query('INSERT INTO configuracao_itens (configuracao_id, produto_id, posicao) VALUES ($1, $2, $3)',
+                    [id, item.id, item.posicao || null]);
+            }
+            await client.query('COMMIT');
+            return rows[0];
+        } catch (erro) {
+            await client.query('ROLLBACK');
+            throw erro;
+        } finally { client.release(); }
+    }
+
     static async salvar(usuarioId, nome, itens, tipoMontagem = 'com-marchas') {
         const client = await pool.connect();
         try {

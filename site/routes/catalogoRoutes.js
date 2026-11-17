@@ -14,6 +14,7 @@ router.post('/api/pdf', validarSelecao('pdf'), catalogoController.gerarPdf);
 
 router.get('/minhas-configuracoes', catalogoController.exibirMinhasConfiguracoes);
 router.post('/api/configuracoes', validarSelecao('salvar'), catalogoController.salvarConfiguracao);
+router.post('/api/configuracoes/:id', validarId, validarSelecao('salvar'), catalogoController.salvarConfiguracao);
 router.get('/api/configuracoes/:id', validarId, catalogoController.carregarConfiguracao);
 router.post('/api/configuracoes/:id/excluir', validarId, catalogoController.excluirConfiguracao);
 

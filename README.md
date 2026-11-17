@@ -457,6 +457,34 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Edição de configurações salvas (etapa 19)
+
+Em **Minhas configs**, escolha **Editar configuração**. A montagem abre com
+as peças e o tipo de montagem salvos, mostra o nome em edição e oferece
+**Salvar alterações**. É possível alterar as peças, o tipo e o nome; o
+diálogo de salvamento já traz o nome atual. O ID e a data de criação são
+preservados. Depois de salvar uma montagem nova, o configurador passa a
+editar esse mesmo registro e atualiza a URL, evitando cópias a cada clique.
+
+A atualização usa `POST /catalogo/api/configuracoes/:id`, com as mesmas
+validações da criação. O servidor usa o usuário da sessão para autorizar o
+`UPDATE`; uma montagem inexistente ou de outro usuário retorna 404. Nome,
+tipo e substituição dos itens são gravados em uma única transação, com
+rollback em caso de falha. A mesma peça nas duas rodas mantém suas posições.
+Atualizações simultâneas são serializadas pelo bloqueio do registro; a
+última atualização concluída define o conteúdo salvo.
+
+Peças indisponíveis impedem salvar quando enviadas na seleção. Peças antigas
+que já estavam indisponíveis ao reabrir ficam fora da seleção e exigem
+confirmação antes de serem removidas da montagem salva. Cancelar mantém o
+registro original. Se a montagem não puder ser carregada, o salvamento fica
+bloqueado; falhas ao salvar mantêm a seleção para nova tentativa.
+
+Validação: `npm --prefix site test`, incluindo testes de transação com banco
+simulado, autorização no controller e DOM real do configurador. Não foi
+executada validação contra o banco de produção. Não exige migração nem nova
+variável de ambiente.
+
 ### Validação das requisições (etapa 18)
 
 As rotas do catálogo, orçamento, PDF, configurações e revisão administrativa

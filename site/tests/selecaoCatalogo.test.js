@@ -43,12 +43,12 @@ async function abrir({ subcategoria = 'quadro', encontrado = true, ok = true, qu
         },
         window: { BikonfigConteudoSeguro: require('../public/js/conteudo-seguro'), location: { search: query ?? `?produto=produto-1&subcategoria=${subcategoria}` } },
         URLSearchParams, console: { error() {} },
-        Bikonfig: { toast: mensagem => avisos.push(mensagem), promptDialog: async () => 'Montagem' },
+        Bikonfig: { toast: mensagem => avisos.push(mensagem), promptDialog: async () => 'Montagem', confirmDialog: async () => false },
         fetch: async (url, opcoes) => {
             chamadas.push({ url, body: opcoes?.body && JSON.parse(opcoes.body) });
             if (url.includes('/api/pecas/')) return { ok, json: async () => encontrado ? [produto] : [] };
             if (url.includes('/api/orcamento')) return { ok: true, json: async () => ({ total: 123, avisos: [], indisponiveis, compatibilidade, completude }) };
-            if (url === '/catalogo/api/configuracoes') return { ok: true };
+            if (opcoes?.body && url.includes('/api/configuracoes')) return { ok: true, json: async () => ({ id: 'salva', nome: 'Montagem' }) };
             return { ok: true, json: async () => montagem || ({ itens: [] }) };
         }
     });
@@ -113,8 +113,7 @@ test('montagem reaberta mostra aviso persistente com peças e posições indispo
     assert.match(aviso, /Pneu antigo \(dianteira\)/);
     assert.match(aviso, /Pneu antigo \(traseira\)/);
     assert.match(aviso, /excluídas desta seleção, do total e do PDF/);
-    assert.deepEqual(r.chamadas.find(c => c.url.endsWith('/api/configuracoes')).body.itens,
-        [{ id: 'produto-1', posicao: null }]);
+    assert.equal(r.chamadas.some(c => c.url.includes('/api/configuracoes') && c.body), false);
     r.elementos.btnLimparConfig.listeners.click();
     assert.equal(r.elementos.configIndisponiveis.textContent, '');
 });
@@ -163,7 +162,7 @@ test('tipo da montagem salva é restaurado, enviado no orçamento e preservado a
     } });
     assert.equal(r.elementos.tipoMontagem.value, 'single-speed');
     assert.equal(r.chamadas.find(c => c.url.endsWith('/api/orcamento')).body.tipoMontagem, 'single-speed');
-    assert.equal(r.chamadas.find(c => c.url.endsWith('/api/configuracoes')).body.tipoMontagem, 'single-speed');
+    assert.equal(r.chamadas.find(c => c.url.endsWith('/api/configuracoes/salva') && c.body).body.tipoMontagem, 'single-speed');
     r.elementos.tipoMontagem.value = 'suspensao-total';
     await r.elementos.tipoMontagem.listeners.change();
     assert.equal(r.chamadas.at(-1).body.tipoMontagem, 'suspensao-total');

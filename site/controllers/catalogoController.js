@@ -238,7 +238,10 @@ const catalogoController = {
                 return res.status(409).json({ erro: 'Há peças indisponíveis na seleção. Substitua-as antes de salvar.' });
             }
 
-            const configuracao = await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar, tipoMontagem);
+            const configuracao = req.params?.id
+                ? await ConfiguracaoModel.atualizar(req.params.id, req.session.user.id, nome, itensParaSalvar, tipoMontagem)
+                : await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar, tipoMontagem);
+            if (!configuracao) return res.status(404).json({ erro: 'Configuração não encontrada.' });
             res.json({ id: configuracao.id, nome: configuracao.nome });
         } catch (erro) {
             console.error('Erro ao salvar configuração:', erro);

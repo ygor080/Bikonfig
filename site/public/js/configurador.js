@@ -11,6 +11,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const indisponiveisEl = document.getElementById('configIndisponiveis');
     const btnLimpar = document.getElementById('btnLimparConfig');
     const btnSalvarConfig = document.getElementById('btnSalvarConfig');
+    const edicaoEl = document.getElementById('configEdicao');
+    let configuracaoEmEdicao = null;
+    let nomeConfiguracao = '';
+    let indisponiveisNaAbertura = false;
+    let salvandoConfiguracao = false;
+    let falhaAoAbrir = false;
+
+    function atualizarEstadoEdicao() {
+        if (btnSalvarConfig) btnSalvarConfig.textContent = configuracaoEmEdicao ? 'Salvar alterações' : 'Salvar configuração';
+        if (edicaoEl) edicaoEl.textContent = configuracaoEmEdicao ? 'Editando: ' + nomeConfiguracao : '';
+    }
     const btnBaixarPdf = document.getElementById('btnBaixarPdf');
     const btnAtualizarOrcamento = document.getElementById('btnAtualizarOrcamento');
     const tipoMontagemEl = document.getElementById('tipoMontagem');
@@ -518,6 +529,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnSalvarConfig) {
         btnSalvarConfig.addEventListener('click', async function () {
+            if (salvandoConfiguracao || btnSalvarConfig.disabled || falhaAoAbrir) return;
+            salvandoConfiguracao = true;
+            try {
             const itens = Object.values(selecionadas).map(function (peca) {
                 return { id: peca.id, posicao: peca.posicao || null };
             });
@@ -528,19 +542,24 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const nome = await Bikonfig.promptDialog({
-                titulo: 'Salvar configuração',
+                titulo: configuracaoEmEdicao ? 'Salvar alterações' : 'Salvar configuração',
+                valorInicial: nomeConfiguracao,
                 rotulo: 'Nome da configuração',
                 placeholder: 'Ex.: Minha MTB de trilha',
                 textoConfirmar: 'Salvar'
             });
             if (!nome) return;
+            if (configuracaoEmEdicao && indisponiveisNaAbertura && !await Bikonfig.confirmDialog({
+                titulo: 'Atualizar configuração',
+                mensagem: 'As peças indisponíveis da montagem original não estão nesta seleção. Ao salvar, elas serão removidas da configuração. Deseja continuar?',
+                textoConfirmar: 'Salvar alterações'
+            })) return;
 
-            const textoOriginal = btnSalvarConfig.textContent;
             btnSalvarConfig.textContent = 'Salvando...';
             btnSalvarConfig.disabled = true;
 
             try {
-                const resposta = await fetch('/catalogo/api/configuracoes', {
+                const resposta = await fetch('/catalogo/api/configuracoes' + (configuracaoEmEdicao ? '/' + encodeURIComponent(configuracaoEmEdicao) : ''), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoMontagemAtual() })
@@ -551,18 +570,26 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error(erro.erro || 'Falha ao salvar a configuração.');
                 }
 
+                const salva = await resposta.json();
+                configuracaoEmEdicao = salva.id;
+                nomeConfiguracao = salva.nome;
+                indisponiveisNaAbertura = false;
+                if (indisponiveisEl) indisponiveisEl.textContent = '';
+                window.history?.replaceState(null, '', '/catalogo/configurador?config=' + encodeURIComponent(salva.id));
                 Bikonfig.toast('Configuração salva! Você pode vê-la em "Minhas configs".', { tipo: 'sucesso' });
             } catch (erro) {
                 console.error('Erro ao salvar configuração', erro);
                 Bikonfig.toast(erro.message || 'Não foi possível salvar a configuração. Tente novamente.', { tipo: 'erro' });
             } finally {
-                btnSalvarConfig.textContent = textoOriginal;
+                atualizarEstadoEdicao();
                 btnSalvarConfig.disabled = false;
             }
+            } finally { salvandoConfiguracao = false; }
         });
     }
 
     async function carregarConfiguracaoSalva(id) {
+        if (btnSalvarConfig) btnSalvarConfig.disabled = true;
         try {
             const resposta = await fetch('/catalogo/api/configuracoes/' + encodeURIComponent(id));
             if (!resposta.ok) throw new Error('Configuração não encontrada.');
@@ -609,7 +636,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             atualizarCheckMenu();
             atualizarOrcamento();
+            configuracaoEmEdicao = dados.id || id;
+            nomeConfiguracao = dados.nome || '';
+            indisponiveisNaAbertura = Boolean(dados.indisponiveis?.length);
+            atualizarEstadoEdicao();
+            if (btnSalvarConfig) btnSalvarConfig.disabled = false;
         } catch (erro) {
+            falhaAoAbrir = true;
+            if (edicaoEl) edicaoEl.textContent = 'Não foi possível abrir a montagem. Recarregue a página para tentar novamente.';
             console.error('Erro ao carregar configuração salva', erro);
             Bikonfig.toast('Não foi possível carregar essa configuração salva.', { tipo: 'erro' });
         }

@@ -47,7 +47,7 @@ function controller(produtos) {
     async function executar(acao, body) {
         let dados, status = 200;
         const res = { status(s) { status = s; return this; }, json(d) { dados = d; } };
-        await contexto.module.exports[acao]({ body, params: { id: 'c' }, session: { user: { id: 'u' } } }, res);
+        await contexto.module.exports[acao]({ body, params: acao === 'carregarConfiguracao' ? { id: 'c' } : {}, session: { user: { id: 'u' } } }, res);
         return { status, dados };
     }
     return { executar, salvou: () => salvou };

@@ -42,7 +42,7 @@ function preparar() {
             status(codigo) { status = codigo; return this; },
             json(valor) { dados = JSON.parse(JSON.stringify(valor)); }
         };
-        await controller[acao]({ params: { id: 'config' }, session: { user: { id: 'usuario' } }, body }, res);
+        await controller[acao]({ params: acao === 'carregarConfiguracao' ? { id: 'config' } : {}, session: { user: { id: 'usuario' } }, body }, res);
         return { status, dados };
     }
     return { chamar, salvou: () => salvou };
