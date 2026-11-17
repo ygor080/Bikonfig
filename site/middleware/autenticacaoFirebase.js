@@ -45,41 +45,62 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
         return res.redirect('/login');
     }
 
-    return {
-        async entrar(req, res) {
-            if (!config.habilitado) return res.status(503).json({ erro: 'Integração Firebase ainda desabilitada.', codigo: 'FIREBASE_DESABILITADO' });
-            if (!req.body || Array.isArray(req.body) || Object.keys(req.body).some(chave => chave !== 'idToken')
-                || typeof req.body.idToken !== 'string' || !req.body.idToken.length || req.body.idToken.length > 16384) {
-                return res.status(400).json({ erro: 'Informe apenas um ID token Firebase válido.' });
+    async function autenticar(req, res, cadastro = false) {
+        if (!config.habilitado) return res.status(503).json({ erro: 'Integração Firebase ainda desabilitada.', codigo: 'FIREBASE_DESABILITADO' });
+        if (cadastro && !config.webHabilitado) return res.status(503).json({ erro: 'Cadastro Firebase ainda desabilitado.' });
+        if (!req.body || Array.isArray(req.body) || Object.keys(req.body).some(chave => !(cadastro ? ['idToken', 'nome'] : ['idToken']).includes(chave))
+            || typeof req.body.idToken !== 'string' || !req.body.idToken.length || req.body.idToken.length > 16384) {
+            return res.status(400).json({ erro: 'Informe apenas um ID token Firebase válido.' });
+        }
+        const nome = typeof req.body.nome === 'string' ? req.body.nome.trim() : '';
+        if (cadastro && (nome.length < 3 || nome.length > 40)) return res.status(400).json({ erro: 'Informe um usuário entre 3 e 40 caracteres.' });
+        let claims, sessionCookie;
+        try {
+            const sdk = obterAuth();
+            claims = await comPrazo(() => sdk.verifyIdToken(req.body.idToken, true));
+            validarClaims(claims, config.projectId);
+            const idade = Date.now() / 1000 - claims.auth_time;
+            if (!Number.isInteger(claims.auth_time) || idade < 0 || idade > 300) {
+                return res.status(401).json({ erro: 'Entre novamente no Firebase antes de iniciar a sessão.', codigo: 'LOGIN_RECENTE_NECESSARIO' });
             }
-            let claims, sessionCookie;
-            try {
-                const sdk = obterAuth();
-                claims = await comPrazo(() => sdk.verifyIdToken(req.body.idToken, true));
-                validarClaims(claims, config.projectId);
-                const idade = Date.now() / 1000 - claims.auth_time;
-                if (!Number.isInteger(claims.auth_time) || idade < 0 || idade > 300) {
-                    return res.status(401).json({ erro: 'Entre novamente no Firebase antes de iniciar a sessão.', codigo: 'LOGIN_RECENTE_NECESSARIO' });
+            sessionCookie = await comPrazo(() => sdk.createSessionCookie(req.body.idToken, { expiresIn: DURACAO }));
+            if (typeof sessionCookie !== 'string' || !sessionCookie.length) throw new Error('invalid_session');
+        } catch (erro) {
+            if (INVALIDOS.has(erro.code)) return res.status(401).json({ erro: 'Não foi possível validar sua identidade.', codigo: 'FIREBASE_TOKEN_INVALIDO' });
+            return indisponivel(res);
+        }
+        let usuario;
+        try {
+            if (cadastro) {
+                if (claims.firebase?.sign_in_provider !== 'password' || typeof claims.email !== 'string'
+                    || claims.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(claims.email.trim())) {
+                    return res.status(401).json({ erro: 'Use uma identidade Firebase de e-mail e senha para concluir este cadastro.' });
                 }
-                sessionCookie = await comPrazo(() => sdk.createSessionCookie(req.body.idToken, { expiresIn: DURACAO }));
-                if (typeof sessionCookie !== 'string' || !sessionCookie.length) throw new Error('invalid_session');
-            } catch (erro) {
-                if (INVALIDOS.has(erro.code)) return res.status(401).json({ erro: 'Não foi possível validar sua identidade.', codigo: 'FIREBASE_TOKEN_INVALIDO' });
-                return indisponivel(res);
-            }
-            let usuario;
-            try { usuario = await obterIdentidades().buscar(config.projectId, claims.uid); }
-            catch { return indisponivel(res); }
-            if (!usuario) return res.status(409).json({ erro: 'Esta identidade ainda não está vinculada a uma conta do Bikonfig.', codigo: 'CONTA_NAO_VINCULADA' });
-            // O navegador recebe o JWT de sessão apenas em cookie HttpOnly.
-            // O store guarda somente a identidade vinculada, sem tokens Firebase.
-            await autenticarSessao(req, usuario, { projectId: config.projectId, uid: claims.uid });
-            res.cookie(NOME_COOKIE_FIREBASE, sessionCookie, { ...opcoesCookie, maxAge: DURACAO });
-            res.json({ redirecionar: '/home' });
+                usuario = await obterIdentidades().cadastrar(config.projectId, claims.uid, nome, claims.email.trim().toLowerCase());
+            } else usuario = await obterIdentidades().buscar(config.projectId, claims.uid);
+        } catch (erro) {
+            if (erro.code === 'CADASTRO_CONFLITO') return res.status(409).json({ erro: 'Não foi possível concluir com esses dados. Se você já tinha uma conta, use o acesso anterior até a migração.', codigo: 'CADASTRO_CONFLITO' });
+            return indisponivel(res);
+        }
+        if (!usuario) return res.status(409).json({ erro: 'Esta identidade ainda não está vinculada a uma conta do Bikonfig.', codigo: 'CONTA_NAO_VINCULADA' });
+        // O navegador recebe o JWT de sessão apenas em cookie HttpOnly.
+        // O store guarda somente a identidade vinculada, sem tokens Firebase.
+        await autenticarSessao(req, usuario, { projectId: config.projectId, uid: claims.uid });
+        res.cookie(NOME_COOKIE_FIREBASE, sessionCookie, { ...opcoesCookie, maxAge: DURACAO });
+        res.json({ redirecionar: '/home' });
+    }
+    return {
+        webHabilitado: config.habilitado && config.webHabilitado,
+        entrar: (req, res) => autenticar(req, res),
+        cadastrar: (req, res) => autenticar(req, res, true),
+        configurar(req, res) {
+            if (!config.habilitado || !config.webHabilitado) return res.status(404).json({ erro: 'Configuração web indisponível.' });
+            res.json(config.publica);
         },
         async validarSessao(req, res, next) {
             const sessao = req.session.firebaseAuth;
-            if (!sessao || req.path === '/logout' && req.method === 'POST' || req.path === '/auth/firebase/session') return next();
+            if (!sessao || req.path === '/logout' && req.method === 'POST'
+                || ['/auth/firebase/session', '/auth/firebase/register'].includes(req.path)) return next();
             if (!config.habilitado || sessao.projectId !== config.projectId) return invalidar(req, res);
             let claims;
             try {

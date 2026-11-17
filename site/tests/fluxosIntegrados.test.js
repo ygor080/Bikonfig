@@ -54,10 +54,10 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     t.after(() => { if (anterior) require.cache[bancoPath] = anterior; else delete require.cache[bancoPath]; });
     const { criarApp } = require('../app');
     const env = { SECRET: 'segredo-exclusivo-de-testes-integrados-0123456789', NODE_ENV: 'test' };
-    async function iniciar() {
+    async function iniciar(extraEnv = {}) {
         const store = new PgSession({ pool, tableName: 'sessoes_site', createTableIfMissing: true, pruneSessionInterval: false });
         stores.push(store);
-        const server = criarApp({ env, pool, store }).listen(0, '127.0.0.1');
+        const server = criarApp({ env: { ...env, ...extraEnv }, pool, store }).listen(0, '127.0.0.1');
         servers.push(server);
         await new Promise(resolve => server.on('listening', resolve));
         return `http://127.0.0.1:${server.address().port}`;
@@ -346,4 +346,52 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.equal(desabilitado.status, 503);
         assert.equal((await desabilitado.json()).codigo, 'FIREBASE_DESABILITADO');
     });
+    await t.test('cadastro Firebase cria usuário sem senha utilizável, é idempotente e não associa e-mails antigos', async () => {
+        const Identidade = require('../models/identidadeFirebaseModel');
+        const novo = await Identidade.cadastrar('bikonfig-test', 'uid-novo', 'Novo Firebase', 'novo-firebase@teste.com');
+        assert.equal(novo.isAdmin, false);
+        assert.equal((await Identidade.buscar('bikonfig-test', 'uid-novo')).id, novo.id);
+        const hash = (await db.query('SELECT senha FROM usuarios WHERE id = $1', [novo.id])).rows[0].senha;
+        assert.equal(await bcrypt.compare(senha, hash), false);
+        const repetido = await Identidade.cadastrar('bikonfig-test', 'uid-novo', 'Outro nome', 'outro-email@teste.com');
+        assert.equal(repetido.id, novo.id); assert.equal(repetido.nome, 'Novo Firebase');
+        const dono = (await db.query("SELECT id, email FROM usuarios WHERE nome = 'dono'")).rows[0];
+        for (const [uid, nome, email] of [['uid-conflito-email', 'Livre', dono.email], ['uid-conflito-nome', 'dono', 'livre@teste.com']]) {
+            await assert.rejects(Identidade.cadastrar('bikonfig-test', uid, nome, email), { code: 'CADASTRO_CONFLITO' });
+            assert.equal(await Identidade.buscar('bikonfig-test', uid), null);
+        }
+        assert.equal((await db.query('SELECT COUNT(*) AS n FROM usuarios WHERE nome = $1', ['Livre'])).rows[0].n, 0);
+        assert.equal((await require('../models/usuarioModel').validarLogin('dono', senha)).id, dono.id);
+        await db.exec(`CREATE FUNCTION rejeitar_vinculo_teste() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'falha controlada do banco'; END $$;
+            CREATE TRIGGER falha_vinculo_teste BEFORE INSERT ON usuarios_identidades
+            FOR EACH ROW EXECUTE FUNCTION rejeitar_vinculo_teste()`);
+        try {
+            await assert.rejects(Identidade.cadastrar('bikonfig-test', 'uid-falha', 'Sem orfao', 'sem-orfao@teste.com'));
+            assert.equal((await db.query('SELECT COUNT(*) AS n FROM usuarios WHERE nome = $1', ['Sem orfao'])).rows[0].n, 0);
+            assert.equal(await Identidade.buscar('bikonfig-test', 'uid-falha'), null);
+        } finally {
+            await db.exec('DROP TRIGGER falha_vinculo_teste ON usuarios_identidades; DROP FUNCTION rejeitar_vinculo_teste()');
+        }
+    });
+
+    await t.test('interface Firebase ativa mantém acesso legado, erros de formulário e CSP restrita', async () => {
+        base = await iniciar({ FIREBASE_ENABLED: 'true', FIREBASE_WEB_ENABLED: 'true', FIREBASE_PROJECT_ID: 'bikonfig-test',
+            FIREBASE_WEB_API_KEY: 'AIza-chave-publica-de-testes-123456789', FIREBASE_AUTH_DOMAIN: 'bikonfig-test.firebaseapp.com',
+            FIREBASE_WEB_APP_ID: '1:123456:web:abcdef', FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]' });
+        const visitante = cliente();
+        const pagina = await visitante.pedir('/login'), html = await pagina.text();
+        assert.match(html, /data-firebase="true"/); assert.match(html, /name="email"/);
+        assert.match(html, /firebase-auth.bundle.js/); assert.match(html, /login\?legado=1/);
+        const csp = pagina.headers.get('content-security-policy');
+        assert.match(csp, /connect-src 'self' https:\/\/identitytoolkit.googleapis.com https:\/\/securetoken.googleapis.com;/);
+        assert.match(csp, /script-src 'self';/); assert.ok(!csp.includes('unsafe-inline'));
+        const legado = await (await visitante.pedir('/login?legado=1')).text();
+        assert.match(legado, /name="usuario"/); assert.match(legado, /action="\/login\?legado=1"/);
+        assert.ok(!legado.includes('firebase-auth.bundle.js'));
+        const erro = await (await visitante.pedir('/login?legado=1', { usuario: 'dono', senha: 'incorreta' })).text();
+        assert.match(erro, /Usuário ou senha inválidos/); assert.match(erro, /data-firebase="false"/);
+        assert.match(erro, /cadastro\?legado=1/);
+    });
+
 });

@@ -1,3 +1,4 @@
+<% const usaFirebase = typeof firebaseUi !== 'undefined' && firebaseUi; const temFirebase = typeof firebaseDisponivel !== 'undefined' && firebaseDisponivel; const sufixoLegado = temFirebase && !usaFirebase ? '?legado=1' : ''; %>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -26,13 +27,13 @@
                 <div class="erro"><%= erro %></div>
             <% } %>
 
-            <form method="POST" action="/cadastro" class="form-login" id="formCadastro" novalidate>
+            <form method="POST" action="<%= usaFirebase ? '/auth/firebase/register' : '/cadastro' + sufixoLegado %>" data-firebase="<%= usaFirebase %>" data-operacao="cadastro" class="form-login" id="formCadastro" novalidate>
                             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                 <label class="campo-label" for="nome">Usuário</label>
                 <input type="text" id="nome" name="nome" placeholder="Usuario" value="<%= valores.nome || '' %>" minlength="3" maxlength="40" required>
 
                 <label class="campo-label" for="email">E-mail</label>
-                <input type="email" id="email" name="email" placeholder="E-mail" value="<%= valores.email || '' %>" required>
+                <input type="email" id="email" name="email" autocomplete="email" maxlength="254" placeholder="E-mail" value="<%= valores.email || '' %>" required>
 
                 <label class="campo-label" for="senha">Senha</label>
                 <div class="campo-senha">
@@ -55,11 +56,14 @@
                 </div>
                 <small class="aviso-confirmacao" id="avisoConfirmacao"></small>
 
-                <button type="submit" class="btn-principal">Criar conta</button>
+                <% if (usaFirebase) { %><div id="erroFirebase" class="erro" role="alert" tabindex="-1" hidden></div><p id="statusFirebase" role="status" aria-live="polite"></p><noscript>Ative o JavaScript para acessar com e-mail e senha.</noscript><% } %>
+                <button type="submit" class="btn-principal" <%= usaFirebase ? 'disabled' : '' %>>Criar conta</button>
             </form>
 
+            <% if (usaFirebase) { %><p><a href="/login?legado=1">Já usava o Bikonfig? Acessar com usuário e senha</a></p><% } %>
+            <% if (temFirebase && !usaFirebase) { %><p><a href="/cadastro">Acessar com e-mail pelo Firebase</a></p><% } %>
             <div class="info-demo">
-                <small>Já tem conta? <a href="/login">Entrar</a></small>
+                <small>Já tem conta? <a href="/login<%= sufixoLegado %>">Entrar</a></small>
             </div>
         </div>
     </main>
@@ -71,5 +75,6 @@
     </footer>
 
     <script src="/js/auth.js"></script>
+    <% if (usaFirebase) { %><script src="/js/firebase-auth.bundle.js"></script><% } %>
 </body>
 </html>

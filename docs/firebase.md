@@ -178,3 +178,55 @@ projeto Firebase real. O ambiente desta entrega permanece desabilitado.
 Não há migração nova além da 031, que deve ser aplicada antes da ativação.
 
 Referência: [sessões e cookies Firebase](https://firebase.google.com/docs/auth/admin/manage-cookies).
+# Etapa 33 — cadastro e login por e-mail e senha
+
+A interface web usa o SDK oficial Firebase, empacotado localmente em
+`site/public/js/firebase-auth.bundle.js`. Para regenerar após alterar o código ou
+atualizar o SDK: `npm --prefix site ci` e `npm --prefix site run build:auth`.
+O bundle é versionado e não exige compilação no deploy.
+
+Para ativar depois de configurar e validar o projeto:
+
+1. No Firebase Authentication, habilite o provedor **E-mail/senha**. Configure a
+   política de senha para exigir 8 caracteres, maiúscula, minúscula, número e
+   caractere especial; a validação do navegador apenas orienta o preenchimento.
+2. Conclua a configuração e as verificações das etapas 31 e 32, incluindo a
+   migração `031_vinculos_firebase.sql`, domínios autorizados e credencial do
+   servidor. Não há migração SQL adicional nesta etapa.
+3. Defina `FIREBASE_ENABLED=true` e `FIREBASE_WEB_ENABLED=true` e reinicie o site.
+   A segunda flag libera a interface, o endpoint público de configuração e o
+   cadastro. O padrão permanece desabilitado enquanto o projeto não está pronto.
+4. Em homologação, valide cadastro, login, logout, recarregamento, senha incorreta,
+   conflito com usuário antigo e retomada de cadastro após falha de conexão.
+   Só depois habilite em produção. Para voltar à interface anterior, desative
+   apenas `FIREBASE_WEB_ENABLED`; sessões Firebase continuam sendo verificadas.
+
+`/login` passa a usar e-mail; `/login?legado=1` preserva o acesso antigo por
+usuário. Os formulários e links antigos mantêm o parâmetro também nos erros.
+Contas antigas não são vinculadas automaticamente por e-mail. Google,
+recuperação de senha e migração continuam nas etapas seguintes.
+
+O navegador guarda a identidade Firebase somente em memória e troca um ID token
+por cookies de sessão HttpOnly. Senhas e tokens não são gravados no armazenamento
+do navegador nem incluídos na sessão Express. A CSP permite conexões apenas aos
+dois endpoints oficiais de autenticação necessários, além da própria origem.
+Referências: [login por senha](https://firebase.google.com/docs/auth/web/password-auth)
+e [persistência em memória](https://firebase.google.com/docs/auth/web/auth-state-persistence).
+
+O cadastro local recebe apenas nome e token. UID, projeto, provedor e e-mail vêm
+do token validado pelo servidor. Usuário e vínculo são criados em uma transação;
+repetições com o mesmo UID retornam a mesma conta. Conflitos não associam nem
+modificam contas existentes. A coluna legada `senha NOT NULL` recebe o hash de
+um segredo aleatório de 256 bits descartado; a senha Firebase nunca é enviada
+ao backend Bikonfig e não serve para entrar pelo formulário antigo.
+
+Firebase e PostgreSQL não compartilham transação: se o cadastro Firebase funcionar
+e o cadastro local falhar, a identidade Firebase permanece. Reenvie o cadastro
+com o mesmo e-mail e senha; a interface comprova a posse pelo Firebase e tenta
+concluir a conta local. Se houver conflito com conta antiga, use o acesso legado
+até a migração. Não exclua automaticamente identidades remotas em resposta a uma
+falha local, pois uma tentativa concorrente pode já ter concluído o cadastro.
+
+Validação automatizada usa SDK simulado, HTTP com CSRF real, DOM e PostgreSQL
+temporário. O teste com um projeto Firebase real depende da configuração do
+projeto pelo responsável e ainda deve ser realizado antes da ativação.

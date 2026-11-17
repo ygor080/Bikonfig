@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (form) {
         form.addEventListener('submit', function (evento) {
+            if (form.dataset.firebase === 'true') return;
             if (!senhaValida(campoSenha.value)) {
                 evento.preventDefault();
                 atualizarChecklist();

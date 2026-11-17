@@ -10,6 +10,8 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     app.disable('x-powered-by');
     // Render encerra o HTTPS no proxy imediatamente à frente do servidor.
     if (env.NODE_ENV === 'production') app.set('trust proxy', 1);
+    const configFirebaseWeb = require('./config/firebase').lerConfigFirebase(env);
+    app.use((req, res, next) => { res.locals.firebaseConexoes = configFirebaseWeb.webHabilitado === true; next(); });
     app.use(require('./middleware/segurancaConteudo'));
     // Sem sessão: os probes do Render não devem criar ou consultar cookies.
     app.get('/healthz', require('./middleware/saude').criarVerificacaoSaude(pool));
@@ -25,7 +27,14 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     const firebase = require('./middleware/autenticacaoFirebase').criarAutenticacaoFirebase({ env, auth: firebaseAuth });
     app.use(firebase.validarSessao);
     app.use(require('./middleware/csrf'));
+    app.use((req, res, next) => {
+        res.locals.firebaseDisponivel = firebase.webHabilitado;
+        res.locals.firebaseUi = firebase.webHabilitado && req.query.legado !== '1';
+        next();
+    });
+    app.get('/auth/firebase/config', firebase.configurar);
     app.post('/auth/firebase/session', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.entrar);
+    app.post('/auth/firebase/register', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.cadastrar);
     app.use('/', require('./routes/authRoutes'));
     app.use('/catalogo', require('./routes/catalogoRoutes'));
     app.use('/admin', require('./routes/adminRoutes'));

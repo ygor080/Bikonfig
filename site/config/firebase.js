@@ -19,7 +19,9 @@ function lerConfigFirebase(env = process.env) {
         throw new Error('Declare os domínios autorizados em FIREBASE_AUTHORIZED_DOMAINS_JSON.');
     }
     if (env.NODE_ENV === 'production' && env.FIREBASE_AUTH_EMULATOR_HOST) throw new Error('Emulador Firebase não é permitido em produção.');
+    if (env.FIREBASE_WEB_ENABLED && !['true', 'false'].includes(env.FIREBASE_WEB_ENABLED)) throw new Error('FIREBASE_WEB_ENABLED deve ser true ou false.');
     return { habilitado: true, projectId, dominios: [...new Set(dominios)],
+        webHabilitado: env.FIREBASE_WEB_ENABLED === 'true',
         publica: { apiKey, authDomain, projectId, appId } };
 }
 

@@ -12,11 +12,11 @@ const claims = sessao => ({ uid: 'firebase-uid', sub: 'firebase-uid', aud: proje
     iss: (sessao ? 'https://session.firebase.google.com/' : 'https://securetoken.google.com/') + projeto,
     auth_time: Math.floor(Date.now() / 1000), admin: true, email: 'nao-usar@cliente.invalid' });
 
-async function iniciar(t, habilitado = true) {
+async function iniciar(t, habilitado = true, web = false) {
     const env = { SECRET: 'segredo-apenas-para-testes-firebase-123456', FIREBASE_ENABLED: String(habilitado),
         FIREBASE_PROJECT_ID: projeto, FIREBASE_WEB_API_KEY: 'AIza-chave-publica-de-testes-123456789',
         FIREBASE_AUTH_DOMAIN: projeto + '.firebaseapp.com', FIREBASE_WEB_APP_ID: '1:123456:web:abcdef',
-        FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]' };
+        FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]', FIREBASE_WEB_ENABLED: String(web) };
     const estado = { usuario: { id: 'id-do-banco', nome: 'Nome do banco', email: 'email@banco.invalid', isAdmin: false },
         idClaims: claims(false), cookieClaims: claims(true), chamadas: [] };
     const sdk = {
@@ -32,10 +32,16 @@ async function iniciar(t, habilitado = true) {
     app.use(express.json()); app.use(session(sessao.opcoesSessao(env, store)));
     const firebase = criarAutenticacaoFirebase({ env, auth: sdk, identidades: { buscar: async (p, uid) => {
         assert.equal(p, projeto); assert.equal(uid, 'firebase-uid'); return estado.usuario;
+    }, cadastrar: async (...args) => {
+        estado.cadastro = args;
+        if (estado.erroCadastro) throw estado.erroCadastro;
+        return estado.usuario;
     } } });
     app.use(firebase.validarSessao); app.use(require('../middleware/csrf'));
     app.get('/login', (req, res) => res.json({ csrf: res.locals.csrfToken }));
     app.post('/auth/firebase/session', firebase.entrar);
+    app.post('/auth/firebase/register', firebase.cadastrar);
+    app.get('/auth/firebase/config', firebase.configurar);
     app.post('/legado', async (req, res) => { await sessao.autenticarSessao(req, estado.usuario); res.json({ ok: true }); });
     const contexto = { module: { exports: {} }, Buffer, require: nome => nome.includes('usuarioModel') ? {} : sessao };
     vm.runInNewContext(fs.readFileSync(require.resolve('../controllers/authController'), 'utf8'), contexto);
@@ -138,4 +144,32 @@ test('Firebase desabilitado não chama SDK e mantém autenticação legada', asy
     assert.equal(r.estado.chamadas.length, 0);
     assert.equal((await r.pedir('/legado', {})).status, 200);
     assert.equal((await r.pedir('/catalogo/api/privado')).status, 200);
+});
+
+
+test('cadastro Firebase exige CSRF, provedor senha e usa e-mail do token validado, sem aceitar privilégios do cliente', async t => {
+    const r = await iniciar(t, true, true); await r.pagina();
+    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' }, { 'x-csrf-token': '' })).status, 403);
+    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa', email: 'injetado@test.com' })).status, 400);
+    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' })).status, 401);
+    assert.equal(r.estado.cadastro, undefined);
+    r.estado.idClaims.firebase = { sign_in_provider: 'password' }; r.estado.idClaims.email = 'Pessoa@EXEMPLO.com';
+    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: ' Pessoa ' })).status, 200);
+    assert.deepEqual(r.estado.cadastro, [projeto, 'firebase-uid', 'Pessoa', 'pessoa@exemplo.com']);
+    assert.equal((await (await r.pedir('/catalogo/api/privado')).json()).isAdmin, false);
+});
+
+test('configuração web expõe somente campos públicos e cadastro respeita flag e conflitos', async t => {
+    const r = await iniciar(t, true, true); await r.pagina();
+    const config = await (await r.pedir('/auth/firebase/config')).json();
+    assert.deepEqual(Object.keys(config).sort(), ['apiKey', 'appId', 'authDomain', 'projectId']);
+    r.estado.idClaims.firebase = { sign_in_provider: 'password' };
+    r.estado.erroCadastro = { code: 'CADASTRO_CONFLITO' };
+    const conflito = await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' });
+    assert.equal(conflito.status, 409); assert.equal((await conflito.json()).codigo, 'CADASTRO_CONFLITO');
+    assert.ok(!r.cookies.has('bikonfig.firebase'));
+    const desligado = await iniciar(t); await desligado.pagina();
+    assert.equal((await desligado.pedir('/auth/firebase/config')).status, 404);
+    assert.equal((await desligado.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' })).status, 503);
+    assert.equal(desligado.estado.chamadas.length, 0);
 });
