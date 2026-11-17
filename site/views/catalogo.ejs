@@ -34,7 +34,7 @@
             <p>Selecione os componentes para sua bicicleta</p>
 
             <div class="monitor-preco">
-                <span>Precos atualizados em tempo real</span>
+                <span>Preços consultados nas coletas. Confira a data de cada oferta e confirme o valor na loja.</span>
             </div>
         </div>
 
@@ -108,6 +108,7 @@
                         <% if (produtos[i].variante_id) { %><p class="loja">Variação: <%= produtos[i].variante || 'Padrão' %></p><% } %>
                         <% if (produtos[i].sku) { %><p class="loja">SKU: <%= produtos[i].sku %></p><% } %>
                         <p class="preco">R$ <%= produtos[i].preco.toFixed(2) %></p>
+                        <p class="loja"><%= produtos[i].preco_verificado_em ? 'Preço consultado em ' + new Date(produtos[i].preco_verificado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' (Brasília)' : 'Preço sem data de consulta registrada' %></p>
                         <p class="fabricante">Fabricante: <%= produtos[i].fabricante || 'Não informado' %></p>
                         <p class="loja">Loja: <%= produtos[i].loja %></p>
                         <div class="estoque">

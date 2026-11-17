@@ -171,6 +171,13 @@ document.addEventListener('DOMContentLoaded', function () {
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[caractere]);
 
+    function dataConsultaPreco(valor) {
+        const data = valor ? new Date(valor) : null;
+        return data && !Number.isNaN(data.getTime())
+            ? 'Preço consultado em ' + data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' (Brasília)'
+            : 'Preço sem data de consulta registrada';
+    }
+
     function renderizarGrid(pecas, subcategoria, nomeSub, posicao, alvo) {
         const multipla = CATEGORIAS_MULTIPLAS.includes(subcategoria);
         const chaveAtual = posicao ? (subcategoria + '::' + posicao) : subcategoria;
@@ -199,6 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         (peca.variante_id ? '<p class="loja">Variação: ' + textoSeguro(peca.variante || 'Padrão') + '</p>' : '') +
                         (peca.sku ? '<p class="loja">SKU: ' + textoSeguro(peca.sku) + '</p>' : '') +
                         '<p class="preco">R$ ' + peca.preco.toFixed(2) + '</p>' +
+                        '<p class="loja">' + textoSeguro(dataConsultaPreco(peca.preco_verificado_em)) + '</p>' +
                         '<p class="fabricante">Fabricante: ' + textoSeguro(peca.fabricante || 'Não informado') + '</p>' +
                         '<p class="loja">Loja: ' + textoSeguro(peca.loja || 'Não informada') + '</p>' +
                         '<p class="estoque">' + (peca.em_estoque === true ? 'Em estoque na última coleta'
@@ -237,6 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: peca.id,
             nome: peca.nome,
             preco: peca.preco,
+            preco_verificado_em: peca.preco_verificado_em,
             imagem: peca.imagem,
             imagemFallback: peca.imagemFallback,
             aro: peca.aro,
@@ -259,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 id: peca.id,
                 nome: peca.nome,
                 preco: peca.preco,
+                preco_verificado_em: peca.preco_verificado_em,
                 imagem: peca.imagem,
                 imagemFallback: peca.imagemFallback,
                 aro: peca.aro,
@@ -364,6 +374,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function renderizarResumoOrcamento(entradas, indisponiveis = []) {
+        const idsIndisponiveis = new Set(indisponiveis);
+        orcamentoListaEl.innerHTML = entradas.map(function (peca) {
+            const rotulo = peca.posicao === 'dianteira' ? ' (dianteira)' : peca.posicao === 'traseira' ? ' (traseira)' : '';
+            return '<li><img class="orcamento-icone" src="' + textoSeguro(peca.imagem || peca.imagemFallback || '/img/pecas/quadro.svg')
+                + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
+                + '" alt=""><span>' + textoSeguro(peca.nome + rotulo) + '<small class="consulta-preco">'
+                + textoSeguro(dataConsultaPreco(peca.preco_verificado_em)) + '</small></span><span>'
+                + (idsIndisponiveis.has(peca.id) ? 'Indisponível — fora do total' : 'R$ ' + peca.preco.toFixed(2)) + '</span></li>';
+        }).join('');
+    }
+
     async function atualizarOrcamento() {
         // Invalida também requisições pendentes quando a seleção é limpa.
         const versao = ++versaoOrcamento;
@@ -379,12 +401,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        orcamentoListaEl.innerHTML = entradas.map(function (peca) {
-            const rotulo = peca.posicao === 'dianteira' ? ' (dianteira)' : peca.posicao === 'traseira' ? ' (traseira)' : '';
-            return '<li><img class="orcamento-icone" src="' + textoSeguro(peca.imagem || peca.imagemFallback || '/img/pecas/quadro.svg')
-                + '" data-imagem-fallback="' + textoSeguro(peca.imagemFallback || '/img/pecas/quadro.svg')
-                + '" alt=""><span>' + peca.nome + rotulo + '</span><span>R$ ' + peca.preco.toFixed(2) + '</span></li>';
-        }).join('');
+        renderizarResumoOrcamento(entradas);
 
         const ids = entradas.map(p => p.id);
         const itens = entradas.map(p => ({ id: p.id, posicao: p.posicao || null }));
@@ -409,16 +426,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             orcamentoTotalEl.textContent = 'R$ ' + dados.total.toFixed(2);
-            const idsIndisponiveis = new Set(dados.indisponiveis || []);
-            if (idsIndisponiveis.size) {
-                // Não manter preços antigos no resumo quando a disponibilidade muda.
-                Array.from(orcamentoListaEl.children).forEach(function (linha, indice) {
-                    if (idsIndisponiveis.has(entradas[indice]?.id)) {
-                        linha.lastElementChild.textContent = 'Indisponível — fora do total';
-                    }
-                });
-            }
-
+            const atuais = new Map((dados.pecas || []).map(peca => [peca.id, peca]));
+            entradas.forEach(function (peca) {
+                const atual = atuais.get(peca.id);
+                if (atual && typeof atual.preco === 'number' && Number.isFinite(atual.preco)) {
+                    peca.preco = atual.preco;
+                    peca.preco_verificado_em = atual.preco_verificado_em;
+                }
+            });
+            renderizarResumoOrcamento(entradas, dados.indisponiveis || []);
             avisosEl.textContent = '';
             (dados.avisos || []).forEach(function (aviso) {
                 const mensagem = document.createElement('p');
@@ -583,6 +599,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     id: peca.id,
                     nome: peca.nome,
                     preco: peca.preco,
+                    preco_verificado_em: peca.preco_verificado_em,
                     imagem: peca.imagem,
                     imagemFallback: peca.imagemFallback,
                     aro: peca.aro,

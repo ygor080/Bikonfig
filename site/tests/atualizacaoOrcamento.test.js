@@ -48,8 +48,8 @@ function preparar() {
         api.selecionadas.quadro = { id, nome: id, preco: 100 };
         return api.atualizarOrcamento();
     }
-    const responder = (indice, total, avisos = []) => requisicoes[indice].resolver({
-        ok: true, json: async () => ({ total, avisos })
+    const responder = (indice, total, avisos = [], pecas = []) => requisicoes[indice].resolver({
+        ok: true, json: async () => ({ total, avisos, pecas })
     });
     return { elementos, requisicoes, api, selecionar, responder };
 }
@@ -127,4 +127,18 @@ test('falhas de rede, HTTP, JSON e total inválido mostram erro e permitem tenta
         await repeticao;
         assert.equal(r.elementos.orcamentoTotal.textContent, 'R$ 250.00');
     }
+});
+
+test('resumo usa preço e data devolvidos pelo servidor, preservando proteção contra resposta antiga', async () => {
+    const r = preparar();
+    const primeira = r.selecionar('atual');
+    const segunda = r.selecionar('atual');
+    r.responder(1, 150, [], [{ id: 'atual', preco: 150, preco_verificado_em: '2026-11-16T09:17:00Z' }]);
+    await segunda;
+    r.responder(0, 100, [], [{ id: 'atual', preco: 100, preco_verificado_em: '2026-11-15T09:17:00Z' }]);
+    await primeira;
+    assert.match(r.elementos.orcamentoLista.innerHTML, /R\$ 150.00/);
+    assert.match(r.elementos.orcamentoLista.innerHTML, /16\/11\/2026/);
+    assert.equal(r.api.selecionadas.quadro.preco, 150);
+    assert.equal(r.api.selecionadas.quadro.preco_verificado_em, '2026-11-16T09:17:00Z');
 });

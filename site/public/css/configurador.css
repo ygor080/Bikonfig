@@ -282,6 +282,14 @@
     padding: 20px 0;
 }
 
+.consulta-preco {
+    display: block;
+    margin-top: 3px;
+    font-size: 10px;
+    line-height: 1.4;
+    color: #746c61;
+}
+
 .config-avisos {
     margin: 10px 0;
 }

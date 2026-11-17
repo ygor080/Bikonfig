@@ -264,6 +264,7 @@ const catalogoController = {
                     id: produto.id,
                     nome: produto.nome,
                     preco: produto.preco,
+                    preco_verificado_em: produto.preco_verificado_em,
                     imagem: produto.imagem,
                     imagemFallback: produto.imagemFallback,
                     aro: produto.aro,

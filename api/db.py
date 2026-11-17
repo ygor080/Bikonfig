@@ -110,6 +110,7 @@ def upsert_product(
     variant_title: str | None = None,
     variant_options: dict | None = None,
     force_review: bool = False,
+    price_observed_at: str | None = None,
 ) -> str:
     """
     Insere ou atualiza um produto. Se o preço mudou em relação ao que já
@@ -119,6 +120,14 @@ def upsert_product(
     Retorna o UUID do produto.
     """
     product_url = normalize_product_url(product_url)
+    import math
+    try:
+        price = float(price) if price is not None and not isinstance(price, bool) else None
+        valid_price = price is not None and math.isfinite(price) and price > 0
+    except (TypeError, ValueError, OverflowError):
+        valid_price = False
+    if not valid_price:
+        price = None
     external_product_id = str(external_product_id) if external_product_id is not None else None
     external_variant_id = str(external_variant_id) if external_variant_id is not None else None
     sku = sku.strip() if isinstance(sku, str) and sku.strip() else None
@@ -160,6 +169,7 @@ def upsert_product(
                 """
                 UPDATE products
                 SET name = %s, image_url = %s, current_price = %s,
+                    price_checked_at = CASE WHEN %s THEN COALESCE(%s::timestamptz, now()) ELSE NULL END,
                     product_url = CASE WHEN EXISTS (
                         SELECT 1 FROM products other WHERE other.source_id = products.source_id
                         AND other.id <> products.id AND other.product_url = %s
@@ -180,7 +190,7 @@ def upsert_product(
                     updated_at = now()
                 WHERE id = %s
                 """,
-                (name, image_url, price, product_url, product_url, product_url, external_product_id, external_variant_id,
+                (name, image_url, price, valid_price, price_observed_at, product_url, product_url, product_url, external_product_id, external_variant_id,
                  sku, variant_title, json.dumps(variant_options), category_id, json.dumps(specs),
                  ai_confidence, bool(force_review), needs_review, is_optional, in_stock, manufacturer, product_id),
             )
@@ -189,12 +199,12 @@ def upsert_product(
                 """
                 INSERT INTO products
                     (source_id, category_id, name, product_url, image_url,
-                     canonical_url, external_product_id, external_variant_id, sku, variant_title, variant_options,
+                     price_checked_at, canonical_url, external_product_id, external_variant_id, sku, variant_title, variant_options,
                      current_price, specs, ai_confidence, needs_review, is_optional, in_stock, manufacturer, stock_checked_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s, %s, %s, %s, now())
+                VALUES (%s, %s, %s, %s, %s, CASE WHEN %s THEN COALESCE(%s::timestamptz, now()) ELSE NULL END, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s, %s, %s, %s, now())
                 RETURNING id
                 """,
-                (source_id, category_id, name, product_url, image_url,
+                (source_id, category_id, name, product_url, image_url, valid_price, price_observed_at,
                  product_url, external_product_id, external_variant_id, sku, variant_title, json.dumps(variant_options),
                  price, json.dumps(specs), ai_confidence, needs_review, is_optional, in_stock, manufacturer),
             )

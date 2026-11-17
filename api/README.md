@@ -311,3 +311,41 @@ As verificações de duplicidade da etapa 12 continuam válidas.
 
 Flags começam falsas; aprovação antiga não comprova revisão humana.
 Correções anteriores precisam ser confirmadas novamente após a migração.
+
+## Atualização agendada de preços (etapa 15)
+
+Antes de executar, aplique `../database/migrations/015_agendamento_precos.sql`.
+O job lê `DATABASE_URL`, `OPENAI_API_KEY` e `COLETA_URLS_JSON`. Alvos devem
+estar nos perfis de lojas autorizadas; rastreamento é normalizado e URLs
+duplicadas são removidas. A configuração inteira é verificada antes de
+iniciar os processos de coleta.
+
+```bash
+python api/run_scheduled_scrape.py
+```
+
+O GitHub Actions oferece execução manual e agendamento diário às 09:17 UTC.
+Configure os dois secrets e a variable `COLETA_URLS_JSON`, teste uma
+execução manual e depois habilite `COLETA_AUTOMATICA_ENABLED=true`.
+O workflow fica desativado por padrão para execuções agendadas e não é
+acionado em push. O arquivo está em `../.github/workflows/coleta-precos.yml`.
+
+Cada fonte cria uma linha em `scrape_runs`: `running`, depois `success`
+com quantidade processada, ou `error` com código de falha. Em falha parcial,
+a contagem não é inventada; itens já gravados continuam na base. Retorno
+do processo sem resultado ou coleta vazia não são considerados sucesso.
+Há timeout de 900 segundos por fonte, orçamento de 2700 segundos e uma
+lease em `scrape_job_locks` com expiração após 75 minutos. Encerramentos
+abruptos podem deixar execuções em `running`, identificáveis pela data
+de início; não são convertidas em sucesso. O registro não contém stderr
+bruto de provedores. Para diagnóstico detalhado, execute a coleta da fonte
+manualmente em ambiente controlado.
+
+`products.price_checked_at` é atualizado só com preço finito e positivo.
+Nova consulta sem mudança de preço renova a data, sem criar histórico
+duplicado. Valores inválidos não recebem data confirmada. A API expõe
+`price_checked_at`, e o site apresenta a consulta de cada oferta. Esse
+campo é independente de `updated_at` e `stock_checked_at`.
+
+Referências: [GitHub Actions: schedule](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule)
+e [controle de concorrência](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#concurrency).

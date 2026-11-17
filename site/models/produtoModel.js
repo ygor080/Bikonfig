@@ -6,6 +6,7 @@ const CAMPOS_PRODUTO = `
     c.slug AS subcategoria,
     COALESCE(parent.slug, c.slug) AS categoria,
     COALESCE(p.current_price, 0) AS preco,
+    to_jsonb(p)->>'price_checked_at' AS preco_verificado_em,
     NULLIF(BTRIM(p.manufacturer), '') AS fabricante,
     s.name AS loja,
     COALESCE(p.canonical_url, p.product_url) AS link,

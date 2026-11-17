@@ -38,6 +38,8 @@ Uso -- subir a API pro front-end:
 """
 
 import argparse
+import json
+from datetime import datetime, timezone
 import re
 import time
 import random
@@ -151,6 +153,7 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
         resp.raise_for_status()
 
         batch = resp.json().get("products", [])
+        price_observed_at = datetime.now(timezone.utc).isoformat()
         if not batch:
             break
 
@@ -199,6 +202,7 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
                     "manufacturer": prod.get(profile["manufacturer_field"]) if profile.get("manufacturer_field") else None,
                     "raw_price_text": variant.get("price") or "",
                     "price": parse_shopify_price(variant.get("price")),
+                    "price_observed_at": price_observed_at,
                     "in_stock": variant.get("available") if isinstance(variant.get("available"), bool) else None,
                     "image_url": image_url,
                     "product_url": normalize_product_url(f"{base}/products/{prod['handle']}?{urlencode({'variant': variant_id})}"),
@@ -217,6 +221,7 @@ def collect_products_shopify(url: str, profile: dict | None = None) -> list[dict
 def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
     """Coleta produtos via scraping de HTML + seletores CSS (lojas não-Shopify)."""
     html = fetch_html(url, profile.get("requires_js", False))
+    price_observed_at = datetime.now(timezone.utc).isoformat()
     soup = BeautifulSoup(html, "html.parser")
     cards = soup.select(profile["product_card"])
 
@@ -310,6 +315,7 @@ def collect_products_custom_html(url: str, profile: dict) -> list[dict]:
             "manufacturer": manufacturer_el.get_text(" ", strip=True) if manufacturer_el else None,
             "raw_price_text": raw_price_text,
             "price": parse_price(raw_price_text),
+            "price_observed_at": price_observed_at,
             "in_stock": in_stock,
             "image_url": image_url,
             "product_url": product_url,
@@ -372,6 +378,7 @@ def scrape_and_store(url: str) -> int:
             product_url=item["product_url"],
             image_url=item["image_url"],
             price=item["price"],
+            price_observed_at=item.get('price_observed_at'),
             category_slug=ai_result["categoria"],
             specs=ai_result["specs"],
             ai_confidence=ai_result["confianca"],
@@ -422,6 +429,7 @@ def get_products():
                 p.is_active,
                 p.in_stock,
                 p.stock_checked_at,
+                to_jsonb(p)->>'price_checked_at' AS price_checked_at,
                 p.current_price,
                 p.image_url,
                 COALESCE(p.canonical_url, p.product_url) AS product_url,
@@ -457,6 +465,7 @@ def get_products():
             "is_active": p["is_active"],
             "in_stock": p["in_stock"],
             "stock_checked_at": p["stock_checked_at"].isoformat() if p["stock_checked_at"] else None,
+            "price_checked_at": str(p['price_checked_at']) if p.get('price_checked_at') else None,
             "current_price": float(p["current_price"]) if p["current_price"] else None,
             "image_url": p["image_url"],
             "product_url": p["product_url"],
@@ -510,6 +519,7 @@ def main():
     print(f"Coletando: {args.url}")
     count = scrape_and_store(args.url)
     print(f"\n{count} produtos processados e salvos no PostgreSQL.")
+    print('BIKONFIG_RESULT ' + json.dumps({'products': count}))
 
     time.sleep(random.uniform(MIN_DELAY, MAX_DELAY))
 

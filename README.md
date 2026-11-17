@@ -78,7 +78,8 @@ publicar: `008_tipo_montagem.sql` (etapa 8) e
 `010_disponibilidade_estoque.sql` (etapa 10) e
 `012_identidade_variantes.sql` (etapa 12) e
 `013_contexto_tecnico_coleta.sql` (etapa 13) e
-`014_preservar_revisao_manual.sql` (etapa 14). A etapa 11 não exige migração.
+`014_preservar_revisao_manual.sql` (etapa 14) e
+`015_agendamento_precos.sql` (etapa 15). A etapa 11 não exige migração.
 
 A coluna `is_admin` (controla o acesso à tela de revisão de produtos) só é
 alterada com `UPDATE` direto no banco — não existe nenhum jeito de virar
@@ -121,6 +122,50 @@ motivo. Ver `api/README.md` para detalhes e exemplos de como adicionar
 novas regras.
 
 ## Front-end
+
+### Coleta agendada e data dos preços (etapa 15)
+
+A rotina diária está em `.github/workflows/coleta-precos.yml`. O horário
+é **09:17 UTC (06:17 em Brasília, UTC-3)**, com acionamento manual em
+Actions. O GitHub pode atrasar execuções agendadas; não se promete preço
+em tempo real. O site no Render não precisa ficar acordado para o job.
+
+Para ativar, nesta ordem:
+
+1. Aplique `database/migrations/015_agendamento_precos.sql` no Supabase.
+2. Em Settings → Secrets and variables → Actions, adicione os **secrets**
+   `DATABASE_URL` (mesmo banco do site) e `OPENAI_API_KEY`.
+3. Nas **variables**, defina `COLETA_URLS_JSON` como uma lista JSON de
+   URLs autorizadas cujos domínios estejam em `api/sites_config.py`.
+   Exemplo de formato: `["https://loja-configurada/colecao"]`.
+4. Execute manualmente **Coleta diária de preços → Run workflow** e
+   confira o resultado em Actions e na tabela `scrape_runs`.
+5. Só então defina a variable `COLETA_AUTOMATICA_ENABLED` como `true`.
+   Para desativar, remova essa variable ou altere para `false`.
+
+O workflow não roda em push e o agendamento fica inativo por padrão.
+Não inclua chaves no código, JSON de URLs ou chat. Cada execução pode
+consumir a API de categorização já usada pelo projeto.
+
+O comando `python api/run_scheduled_scrape.py` executa uma rodada finita.
+Há limite de 15 minutos por fonte e 45 minutos para a rodada, continuidade
+entre falhas de fontes, registro de início/fim/status e bloqueio de
+execuções simultâneas. A lease de 75 minutos no banco expira mesmo após
+interrupção abrupta e funciona com pool de transações do Supabase. O
+workflow tem também `concurrency` e limite de uma hora. Não habilite dois
+agendadores para a mesma rotina.
+
+`price_checked_at` registra a consulta de preço válido, inclusive se o
+valor não mudou. Não é atualizado por revisão administrativa e não é
+preenchido retroativamente com `updated_at`. Preço inválido fica sem
+consulta confirmada. Catálogo, cartões e resumo exibem a data por oferta,
+ou informam que ela é desconhecida. O resumo usa preço e data devolvidos
+pelo servidor, preservando as posições e a proteção contra respostas antigas.
+Antes da migração, a leitura da data retorna desconhecida, sem impedir
+a abertura do catálogo. A coleta exige a migração antes de executar.
+
+Nenhum secret, agendamento ativo ou banco de produção foi configurado
+automaticamente no desenvolvimento desta etapa.
 
 ### Preservação da revisão administrativa (etapa 14)
 

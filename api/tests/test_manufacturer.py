@@ -6,6 +6,7 @@ import types
 import sys
 import unittest
 from pathlib import Path
+from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse, urlencode
 
 API = Path(__file__).resolve().parents[1]
@@ -21,6 +22,8 @@ def functions(filename, names, namespace):
     namespace.setdefault('urlencode', urlencode)
     namespace.setdefault('prepare_product_context', prepare_product_context)
     namespace.setdefault('validate_categorization', validate_categorization)
+    namespace.setdefault('datetime', datetime)
+    namespace.setdefault('timezone', timezone)
     tree = ast.parse((API / filename).read_text(encoding="utf-8-sig"))
     selected = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
     for node in selected:
