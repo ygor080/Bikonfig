@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "reset-db": "node scripts/resetDb.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:integration": "node --test tests/fluxosIntegrados.test.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "jsdom": "^27.4.0",
     "nodemon": "^3.1.14"
   }

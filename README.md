@@ -457,6 +457,42 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Testes integrados e integração contínua (etapa 21)
+
+`npm --prefix site test` executa toda a suíte do site. Para executar apenas
+os fluxos integrados: `npm --prefix site run test:integration`.
+Instale as dependências de desenvolvimento com `npm --prefix site ci` e use
+Node 24. Os testes não precisam de `.env`, credenciais ou banco externo.
+
+A suíte integrada inicia o aplicativo Express em uma porta local aleatória,
+com rotas, middleware, controllers, modelos, templates EJS, bcrypt, PDFKit e
+store de sessões reais. Apenas a conexão é adaptada para um PostgreSQL WASM
+temporário em memória ([PGlite](https://pglite.dev/docs/)). Aplica o
+`database/schema.sql` do projeto, omitindo somente a criação de `pgcrypto`,
+pois `gen_random_uuid()` já está disponível nesse PostgreSQL. O banco e o
+servidor são encerrados ao terminar. Nenhuma conexão de produção é carregada.
+
+Os cenários verificam cadastro e duplicidade, senha e logout, sessão após
+criar outra instância do aplicativo, catálogo, orçamento com duas aplicações
+da mesma peça, criação/listagem/reabertura/edição/exclusão, isolamento entre
+usuários, acesso administrativo, revisão, indisponibilidade de estoque,
+exportação de PDF e rollback real diante de violação de chave estrangeira.
+Os testes de DOM e rascunhos das etapas anteriores continuam na suíte completa.
+
+`site/app.js` permite criar o aplicativo sem abrir uma porta ou carregar
+`.env`; `site/server.js` continua sendo a entrada de produção. Arquivos
+estáticos usam caminho absoluto para funcionar também quando o processo é
+iniciado pela raiz do repositório.
+
+O workflow `.github/workflows/testes.yml` executa `npm ci` e todos os testes
+Node, além dos testes Python existentes, em pushes e pull requests. Não usa
+segredos nem executa coleta, deploy ou migrações no banco externo.
+
+Limites: o PostgreSQL em memória não testa a rede, TLS, permissões do banco
+hospedado ou concorrência entre conexões. Os testes HTTP não substituem um
+teste visual em navegador completo nem a validação do deploy no Render.
+Esta etapa não exige migração nem nova variável de ambiente de produção.
+
 ### Recuperação automática do progresso (etapa 20)
 
 O configurador guarda um rascunho no `localStorage` a cada seleção, remoção,
