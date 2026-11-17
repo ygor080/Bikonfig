@@ -6,13 +6,14 @@ const { JSDOM } = require('jsdom');
 const codigo = nome => fs.readFileSync(require.resolve('../public/js/' + nome), 'utf8');
 const esperar = () => new Promise(resolve => setImmediate(resolve));
 
-async function abrir(t, configurador = false) {
+async function abrir(t, configurador = false, mobile = false) {
     const html = configurador ? ejs.render(fs.readFileSync(require.resolve('../views/configurador.ejs'), 'utf8'), {
         usuario: { nome: 'Teste' }, categorias: [{ slug: 'quadro', nome: 'Quadro', subcategorias: [{ slug: 'quadro', nome: 'Quadro' }] }]
     }) : '<main><button id="origem">Abrir</button></main><button id="menuToggle" aria-expanded="false">Menu</button><nav id="navPrincipal"><a href="/home">Home</a></nav>';
     const dom = new JSDOM(html, { url: 'https://bikonfig.test/catalogo/configurador', runScripts: 'dangerously', pretendToBeVisual: true });
     t.after(() => dom.window.close());
     const w = dom.window;
+    if (mobile) w.matchMedia = () => ({ matches: true, addEventListener() {} });
     w.eval(codigo('app'));
     if (configurador) {
         w.eval(codigo('conteudo-seguro'));
@@ -58,6 +59,15 @@ test('menu fecha com Escape e restaura foco no botão de abertura', async t => {
     d.querySelector('#navPrincipal a').focus();
     d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     assert.equal(toggle.getAttribute('aria-expanded'), 'false'); assert.equal(d.activeElement, toggle);
+});
+
+test('menu mobile fechado fica fora da navegação por teclado e volta ao abrir', async t => {
+    const w = await abrir(t, false, true); const d = w.document;
+    assert.equal(d.getElementById('navPrincipal').inert, true);
+    d.getElementById('menuToggle').click();
+    assert.equal(d.getElementById('navPrincipal').inert, false);
+    d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(d.getElementById('navPrincipal').inert, true);
 });
 
 test('categorias sincronizam expansão e visibilidade; atalhos apontam para seções existentes', async t => {

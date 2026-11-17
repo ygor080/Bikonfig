@@ -204,11 +204,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const nav = document.getElementById('navPrincipal');
 
     if (!toggle || !nav) return;
+    const consultaMobile = window.matchMedia?.('(max-width: 760px)');
+    function sincronizarVisibilidade() {
+        nav.inert = Boolean(consultaMobile?.matches && !nav.classList.contains('aberta'));
+    }
+    consultaMobile?.addEventListener('change', sincronizarVisibilidade);
+    sincronizarVisibilidade();
 
     toggle.addEventListener('click', function () {
         const aberto = nav.classList.toggle('aberta');
         toggle.classList.toggle('aberto', aberto);
         toggle.setAttribute('aria-expanded', String(aberto));
+        sincronizarVisibilidade();
     });
 
     nav.querySelectorAll('a').forEach(function (link) {
@@ -216,6 +223,7 @@ document.addEventListener('DOMContentLoaded', function () {
             nav.classList.remove('aberta');
             toggle.classList.remove('aberto');
             toggle.setAttribute('aria-expanded', 'false');
+            sincronizarVisibilidade();
         });
     });
     document.addEventListener('keydown', function (evento) {
@@ -223,6 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
             nav.classList.remove('aberta');
             toggle.classList.remove('aberto');
             toggle.setAttribute('aria-expanded', 'false');
+            sincronizarVisibilidade();
             toggle.focus();
         }
     });

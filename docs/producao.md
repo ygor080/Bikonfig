@@ -51,7 +51,7 @@ Referência: [health checks do Render](https://render.com/docs/health-checks).
 Execute somente as migrações pendentes em `database/migrations`, em ordem:
 008, 009, 010, 012, 013, 014 e 015. Se a base já estava atualizada até a
 etapa 14, a única migração posterior é `015_agendamento_precos.sql`.
-As etapas 16–23 não exigem uma migração manual nova. O store de sessões
+As etapas 16–28 não exigem uma migração manual nova. O store de sessões
 cria `sessoes_site` no primeiro uso se ela não existir e houver permissão.
 Não é necessário reaplicar todo o `schema.sql` em uma base existente.
 
@@ -73,3 +73,9 @@ Não é necessário reaplicar todo o `schema.sql` em uma base existente.
 Ainda é necessário confirmar no Render: variáveis efetivas, commit publicado,
 Health Check Path e o fluxo autenticado após o deploy. Os testes integrados
 locais usam PostgreSQL temporário; não demonstram o login real em produção.
+
+Atualização da etapa 28: o fluxo autenticado foi validado no deploy com uma
+conta temporária, removida ao final, e a mesma base foi confirmada. `/healthz`
+respondeu 200 e o login emitiu cookie HTTPS protegido. As configurações do
+painel e o SHA publicado continuam sem inspeção direta. Consulte o
+[relatório final](validacao-final.md) para as evidências atualizadas.

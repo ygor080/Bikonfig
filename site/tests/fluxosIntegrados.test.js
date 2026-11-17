@@ -94,6 +94,14 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     }
     let montagem;
 
+    await t.test('verificação de publicação passa nas rotas reais sem criar conta', async () => {
+        const { verificarPublicacao } = require('../scripts/verificarPublicacao');
+        const resultado = await verificarPublicacao(base);
+        assert.equal(resultado.aprovado, true);
+        assert.equal(resultado.resultados.length, 7);
+        assert.equal(Number((await db.query('SELECT COUNT(*) FROM usuarios')).rows[0].count), 0);
+    });
+
     await t.test('diagnóstico lê estrutura e identifica migração faltante; healthz não cria sessão', async () => {
         const { verificarBanco } = require('../config/verificacaoProducao');
         assert.deepEqual((await verificarBanco(pool)).pendencias, []);

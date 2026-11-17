@@ -10,7 +10,8 @@
     "test": "node --test",
     "test:integration": "node --test tests/fluxosIntegrados.test.js",
     "check:production": "node scripts/verificarProducao.js",
-    "benchmark:catalog": "node scripts/medirCatalogo.js"
+    "benchmark:catalog": "node scripts/medirCatalogo.js",
+    "check:published": "node scripts/verificarPublicacao.js"
   },
   "keywords": [],
   "author": "",

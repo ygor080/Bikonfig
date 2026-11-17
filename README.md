@@ -1,5 +1,9 @@
 # Bikonfig (projeto único)
 
+Guias: [uso](docs/guia-de-uso.md), [produção](docs/producao.md),
+[coleta](docs/coleta-automatica.md), [qualidade](docs/qualidade-catalogo.md),
+[desempenho](docs/desempenho.md) e [validação final](docs/validacao-final.md).
+
 - **`api/`**: scraper Python + API FastAPI. Coleta produtos de lojas
   parceiras, categoriza com IA e grava no Postgres com histórico de preço.
 - **`site/`**: site Node + Express + EJS. Login/cadastro, catálogo e o
@@ -457,6 +461,23 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 `views/minhas-configuracoes.ejs` ou `views/admin-revisao.ejs`).
 
 ## ⚠️ Segurança
+
+### Validação final e documentação (etapa 28)
+
+O comando `npm --prefix site run check:published` verifica sete rotas públicas
+do deploy, sem criar conta ou alterar dados de negócio. Confere saúde, assets,
+CSRF no login, atributos do cookie, bloqueio de visitantes e logout por GET.
+
+A validação final passou com 147 testes Node e 47 Python. Um teste autenticado
+temporário também conferiu cadastro, login, orçamento, edição, PDF e exclusão
+no deploy, com limpeza dos registros criados. Catálogo e configurador foram
+inspecionados no Chrome em 320, 390 e 1280 px. O menu mobile fechado agora fica
+fora da navegação por teclado e os textos refletem as funções disponíveis.
+
+O [relatório final](docs/validacao-final.md) distingue evidências, limites e
+pendências: coleta completa/recorrência, revisão técnica dos produtos e
+configuração do painel do Render ainda precisam de acompanhamento.
+Não exige migração, dependência ou variável de ambiente nova.
 
 ### Paginação e desempenho do catálogo (etapa 27)
 
