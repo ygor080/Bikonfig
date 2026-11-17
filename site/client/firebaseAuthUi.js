@@ -18,6 +18,10 @@ function iniciar({ doc = document, criarCliente, consultar = fetch, navegar = ur
         })().catch(e => { clientePromise = null; throw e; });
         return clientePromise;
     }
+    if (form.dataset.operacao === 'recuperar') {
+        require('./firebaseRecuperacaoUi').iniciarRecuperacao({ doc, obterCliente: cliente });
+        return;
+    }
     form.addEventListener('submit', async evento => {
         evento.preventDefault();
         if (ocupado || form.dataset.authBusy === 'true') return;

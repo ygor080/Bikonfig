@@ -52,6 +52,7 @@
                 <p class="auth-google-aviso">No primeiro acesso com Google, uma nova conta será criada se não houver conflito com uma conta existente.</p>
                 <% } %>
             </form>
+            <% if (temFirebase) { %><p><a href="/recuperar-senha">Esqueci minha senha</a></p><% } %>
 
             <% if (usaFirebase) { %><p><a href="/login?legado=1">Já usava o Bikonfig? Acessar com usuário e senha</a></p><% } %>
             <% if (temFirebase && !usaFirebase) { %><p><a href="/login">Acessar com e-mail pelo Firebase</a></p><% } %>

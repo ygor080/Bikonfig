@@ -1,8 +1,7 @@
 # Preparação do Firebase — etapa 31
 
 Este guia começou na etapa 31 com configuração, SDK Admin e vínculo de contas. O login
-existente continua usando os usuários e as sessões atuais. Não há recuperação de senha ou envio de e-mail Firebase ainda; esses fluxos
-serão integrados nas próximas etapas. Nenhum usuário foi importado.
+existente continua usando os usuários e as sessões atuais. A recuperação de senha por e-mail está descrita na etapa 35 deste guia. Nenhum usuário foi importado.
 
 ## 1. Criar o projeto e o aplicativo web
 
@@ -202,7 +201,7 @@ Para ativar depois de configurar e validar o projeto:
 
 `/login` passa a usar e-mail; `/login?legado=1` preserva o acesso antigo por
 usuário. Os formulários e links antigos mantêm o parâmetro também nos erros.
-Contas antigas não são vinculadas automaticamente por e-mail. Recuperação de senha e migração continuam nas etapas seguintes.
+Contas antigas não são vinculadas automaticamente por e-mail. A recuperação de senha está na etapa 35; a migração permanece em etapa própria.
 
 O navegador guarda a identidade Firebase somente em memória e troca um ID token
 por cookies de sessão HttpOnly. Senhas e tokens não são gravados no armazenamento
@@ -282,3 +281,52 @@ depende das credenciais e domínios do projeto e não é comprovada pelos testes
 automatizados.
 
 Referência: [Google com Firebase](https://firebase.google.com/docs/auth/web/google-signin).
+
+## Recuperação de senha — etapa 35
+
+O login oferece **Esqueci minha senha** quando FIREBASE_ENABLED e
+FIREBASE_WEB_ENABLED estão ativados. A página /recuperar-senha recebe apenas
+o e-mail e usa sendPasswordResetEmail do SDK oficial. Não existe endpoint
+Bikonfig de envio, geração de token ou alteração de senha. O e-mail é enviado
+pelo Firebase, e o link abre o manipulador padrão hospedado pelo próprio
+Firebase, que valida o código, sua expiração/uso único e a nova senha.
+Após concluir, a pessoa volta ao /login para entrar com a nova senha.
+
+Não são necessárias nova variável de ambiente, migração SQL, chave de SMTP
+ou mudança do domínio de hospedagem. Mantenha a configuração do projeto
+utilizado no Render. Em Firebase Authentication → Templates, confira o
+modelo de redefinição de senha, remetente e nome do aplicativo. O SDK solicita
+o idioma pt-BR. Mantenha o manipulador padrão de ações de e-mail; configurar
+uma URL personalizada para redefinição exigiria implementar outra página
+para validar e confirmar o código. Habilite a proteção contra enumeração
+de e-mails no projeto e mantenha a política de senha configurada no Firebase.
+
+Para e-mail cadastrado, desconhecido ou conta desabilitada, a interface exibe
+a mesma confirmação condicional, sem afirmar que uma mensagem foi entregue.
+O formulário valida o formato do e-mail, bloqueia solicitações simultâneas
+e aguarda 60 segundos antes de permitir reenvio. Esse intervalo é uma medida
+de interface; as cotas e proteções reais de envio são aplicadas pelo Firebase.
+Falhas de rede, limite e serviço apresentam mensagens sem detalhes internos
+e permitem nova tentativa. E-mails, códigos e senhas não são enviados ao
+backend Bikonfig nem gravados em armazenamento local ou parâmetros de URL.
+
+Contas antigas ainda não migradas continuam com seu bcrypt e não têm a senha
+local alterada por esse fluxo. A página explica essa limitação e oferece
+acesso anterior. Quem entra com Google é orientado a usar Entrar com Google.
+A recuperação da conta Google é administrada pelo próprio Google. Uma redefinição
+Firebase não cria ou vincula conta local automaticamente. A validação de
+sessão existente consulta revogação, preservando a política da etapa 32.
+Com a integração desabilitada, a página informa indisponibilidade sem carregar
+o formulário nem o SDK.
+
+Validação automatizada usa DOM e SDK simulado, sem disparar mensagens reais.
+Inclui resposta genérica, acessibilidade, formato do e-mail, envio duplicado,
+intervalo/reenvio, falhas de rede/configuração e integração HTTP nos modos
+ativo/inativo. Antes de publicar, teste com uma conta Firebase de e-mail/senha
+controlada por você: solicite o link, verifique caixa de entrada/spam, conclua
+a troca no Firebase e volte ao Bikonfig. Confirme que a senha antiga falha,
+a nova entra, montagens permanecem e links inválidos, expirados ou já utilizados
+são recusados pelo manipulador Firebase. Esses passos reais dependem do
+projeto e da entrega de e-mail e não são comprovados pelos testes locais.
+
+Referência: [recuperação pelo Firebase](https://firebase.google.com/docs/auth/web/manage-users#send_a_password_reset_email).

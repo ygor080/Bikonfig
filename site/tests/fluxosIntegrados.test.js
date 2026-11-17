@@ -340,6 +340,9 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor√
         assert.deepEqual(diagnostico.pendencias, []); assert.ok(Number(diagnostico.resumo.com_bcrypt) >= 2);
     });
     await t.test('endpoint Firebase respeita CSRF e fica inativo sem configurar o projeto', async () => {
+        const paginaRecuperar = await (await cliente().pedir('/recuperar-senha')).text();
+        assert.match(paginaRecuperar, /ainda n√£o est√° dispon√≠vel/);
+        assert.ok(!paginaRecuperar.includes('firebase-auth.bundle.js'));
         const semCsrf = await fetch(base + '/auth/firebase/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"idToken":"nao-validar"}' });
         assert.equal(semCsrf.status, 403);
         const desabilitado = await dono.pedir('/auth/firebase/session', { idToken: 'nao-validar' });
@@ -385,6 +388,15 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor√
             FIREBASE_WEB_API_KEY: 'AIza-chave-publica-de-testes-123456789', FIREBASE_AUTH_DOMAIN: 'bikonfig-test.firebaseapp.com',
             FIREBASE_WEB_APP_ID: '1:123456:web:abcdef', FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]' }, sdk);
         const visitante = cliente();
+        const recuperacao = await visitante.pedir('/recuperar-senha');
+        assert.equal(recuperacao.status, 200);
+        const recuperarHtml = await recuperacao.text();
+        assert.match(recuperarHtml, /data-operacao="recuperar"/);
+        assert.match(recuperarHtml, /firebase-auth.bundle.js/);
+        verificarFormularios(recuperarHtml);
+        const semCsrf = await fetch(base + '/recuperar-senha', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+        assert.equal(semCsrf.status, 403);
+        assert.equal((await visitante.pedir('/recuperar-senha', { email: 'nao-enviar@teste.com' })).status, 405);
         const pagina = await visitante.pedir('/login'), html = await pagina.text();
         assert.match(html, /data-firebase="true"/); assert.match(html, /name="email"/);
         assert.match(html, /firebase-auth.bundle.js/); assert.match(html, /login\?legado=1/);
@@ -398,6 +410,7 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor√
         assert.match(erro, /Usu√°rio ou senha inv√°lidos/); assert.match(erro, /data-firebase="false"/);
         assert.match(erro, /cadastro\?legado=1/);
         assert.match(html, /id="entrarGoogle"/);
+        assert.match(html, /href="\/recuperar-senha"/);
         assert.match(csp, /frame-src https:\/\/bikonfig-test.firebaseapp.com;/);
         const google = cliente();
         assert.equal((await google.pedir('/auth/firebase/google', { idToken: 'token-google' })).status, 200);

@@ -1,0 +1,38 @@
+<% const disponivel = typeof firebaseDisponivel !== 'undefined' && firebaseDisponivel; %>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <title>Recuperar senha - Bikonfig</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho"><div class="container"><a href="/" class="logo">Bikonfig</a></div></header>
+    <main class="container">
+        <div class="login-box">
+            <h1>Recuperar senha</h1>
+            <% if (disponivel) { %>
+            <p>Informe o e-mail usado no acesso com e-mail e senha. A redefinição será concluída na página segura do Firebase, pelo link recebido.</p>
+            <form class="form-login" method="POST" action="/recuperar-senha" data-firebase="true" data-operacao="recuperar">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                <label class="campo-label" for="email">E-mail</label>
+                <input type="email" id="email" name="email" autocomplete="email" maxlength="254" required>
+                <div id="erroFirebase" class="erro" role="alert" tabindex="-1" hidden></div>
+                <p id="statusFirebase" role="status" aria-live="polite" tabindex="-1"></p>
+                <button type="submit" class="btn-principal" disabled>Enviar instruções</button>
+                <noscript>Ative o JavaScript para solicitar a recuperação de senha.</noscript>
+            </form>
+            <% } else { %>
+            <p>A recuperação de senha pelo Firebase ainda não está disponível neste ambiente.</p>
+            <% } %>
+            <p class="auth-google-aviso">Se você entra com Google, use o botão Entrar com Google. Contas antigas com usuário e senha ainda não migradas não têm a senha alterada por esta recuperação.</p>
+            <p><a href="/login">Voltar para o login</a></p>
+            <p><a href="/login?legado=1">Acesso anterior com usuário e senha</a></p>
+        </div>
+    </main>
+    <footer class="rodape"><div class="container"><p>Bikonfig - Configurador de bicicletas</p></div></footer>
+    <% if (disponivel) { %><script src="/js/firebase-auth.bundle.js"></script><% } %>
+</body>
+</html>
