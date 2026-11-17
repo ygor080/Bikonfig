@@ -71,5 +71,5 @@ test('configuração indisponível pode ser carregada novamente sem recarregar a
 test('modo desabilitado explica a limitação das contas antigas e não carrega formulário ou SDK', t => {
     const p = pagina(t, false); assert.equal(p.form, null); assert.equal(p.doc.querySelector('script'), null);
     assert.match(p.doc.body.textContent, /ainda não está disponível/);
-    assert.match(p.doc.body.textContent, /Contas antigas/);
+    assert.match(p.doc.body.textContent, /Contas com usuário e senha/);
 });

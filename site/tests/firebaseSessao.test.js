@@ -10,9 +10,9 @@ const { criarAutenticacaoFirebase } = require('../middleware/autenticacaoFirebas
 const projeto = 'bikonfig-test';
 const claims = sessao => ({ uid: 'firebase-uid', sub: 'firebase-uid', aud: projeto,
     iss: (sessao ? 'https://session.firebase.google.com/' : 'https://securetoken.google.com/') + projeto,
-    auth_time: Math.floor(Date.now() / 1000), admin: true, email: 'nao-usar@cliente.invalid' });
+    auth_time: Math.floor(Date.now() / 1000), firebase: { sign_in_provider: 'google.com' }, email_verified: true, admin: true, email: 'nao-usar@cliente.invalid' });
 
-async function iniciar(t, habilitado = true, web = false) {
+async function iniciar(t, habilitado = true, web = true) {
     const env = { SECRET: 'segredo-apenas-para-testes-firebase-123456', FIREBASE_ENABLED: String(habilitado),
         FIREBASE_PROJECT_ID: projeto, FIREBASE_WEB_API_KEY: 'AIza-chave-publica-de-testes-123456789',
         FIREBASE_AUTH_DOMAIN: projeto + '.firebaseapp.com', FIREBASE_WEB_APP_ID: '1:123456:web:abcdef',
@@ -37,17 +37,10 @@ async function iniciar(t, habilitado = true, web = false) {
         if (estado.erroCadastro) throw estado.erroCadastro;
         return estado.novoUsuario || estado.usuario;
     }, temVinculo: async () => estado.legadoVinculado === true,
-    migrar: async (...args) => {
-        estado.migracao = args;
-        if (estado.erroMigracao) throw estado.erroMigracao;
-        return estado.usuario;
-    } } });
+    } });
     app.use(firebase.validarSessao); app.use(require('../middleware/csrf'));
     app.get('/login', (req, res) => res.json({ csrf: res.locals.csrfToken }));
-    app.post('/auth/firebase/session', firebase.entrar);
-    app.post('/auth/firebase/register', firebase.cadastrar);
     app.post('/auth/firebase/google', firebase.entrarGoogle);
-    app.post('/auth/firebase/link', firebase.migrar);
     app.get('/auth/firebase/config', firebase.configurar);
     app.post('/legado', async (req, res) => { await sessao.autenticarSessao(req, estado.usuario); res.json({ ok: true }); });
     const contexto = { module: { exports: {} }, Buffer, require: nome => nome.includes('usuarioModel') ? {} : sessao };
@@ -74,13 +67,13 @@ async function iniciar(t, habilitado = true, web = false) {
         return res;
     }
     async function pagina() { const res = await pedir('/login'); assert.equal(res.status, 200); token = (await res.json()).csrf; }
-    async function entrar() { await pagina(); return pedir('/auth/firebase/session', { idToken: 'id-token-nao-guardar' }); }
+    async function entrar() { await pagina(); return pedir('/auth/firebase/google', { idToken: 'id-token-nao-guardar' }); }
     return { estado, store, base, cookies, cookie, pedir, pagina, entrar };
 }
 
 test('Firebase cria sessão vinculada, renova SID e não guarda tokens no store ou no JSON', async t => {
     const r = await iniciar(t); await r.pagina(); const anterior = r.cookie();
-    const resposta = await r.pedir('/auth/firebase/session', { idToken: 'id-token-nao-guardar' });
+    const resposta = await r.pedir('/auth/firebase/google', { idToken: 'id-token-nao-guardar' });
     assert.equal(resposta.status, 200); assert.deepEqual(await resposta.json(), { redirecionar: '/home' });
     const fb = resposta.headers.getSetCookie().find(c => c.startsWith('bikonfig.firebase='));
     assert.match(fb, /HttpOnly/); assert.match(fb, /SameSite=Lax/);
@@ -97,8 +90,8 @@ test('Firebase cria sessão vinculada, renova SID e não guarda tokens no store 
 
 test('Firebase rejeita CSRF ausente, corpo extra e identidade não vinculada', async t => {
     const r = await iniciar(t); await r.pagina();
-    assert.equal((await r.pedir('/auth/firebase/session', { idToken: 'token' }, { 'x-csrf-token': '' })).status, 403);
-    assert.equal((await r.pedir('/auth/firebase/session', { idToken: 'token', isAdmin: true })).status, 400);
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' }, { 'x-csrf-token': '' })).status, 403);
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token', isAdmin: true })).status, 400);
     assert.equal(r.estado.chamadas.length, 0);
     r.estado.usuario = null;
     const res = await r.entrar(); assert.equal(res.status, 409); assert.equal((await res.json()).codigo, 'CONTA_NAO_VINCULADA');
@@ -108,12 +101,12 @@ test('Firebase rejeita CSRF ausente, corpo extra e identidade não vinculada', a
 test('Firebase exige token válido do projeto e login recente, recusando autenticação futura', async t => {
     const r = await iniciar(t); await r.pagina();
     r.estado.erroId = { code: 'auth/id-token-revoked' };
-    assert.equal((await r.pedir('/auth/firebase/session', { idToken: 'token' })).status, 401);
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' })).status, 401);
     r.estado.erroId = null;
     for (const alteracao of [{ aud: 'outro-projeto' }, { iss: 'https://falso.invalid' },
         { auth_time: Math.floor(Date.now() / 1000) - 600 }, { auth_time: Math.floor(Date.now() / 1000) + 30 }]) {
         r.estado.idClaims = { ...claims(false), ...alteracao };
-        assert.equal((await r.pedir('/auth/firebase/session', { idToken: 'token' })).status, 401);
+        assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' })).status, 401);
     }
     assert.equal(r.cookies.has('bikonfig.firebase'), false);
 });
@@ -154,34 +147,6 @@ test('Firebase desabilitado não chama SDK e mantém autenticação legada', asy
 });
 
 
-test('cadastro Firebase exige CSRF, provedor senha e usa e-mail do token validado, sem aceitar privilégios do cliente', async t => {
-    const r = await iniciar(t, true, true); await r.pagina();
-    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' }, { 'x-csrf-token': '' })).status, 403);
-    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa', email: 'injetado@test.com' })).status, 400);
-    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' })).status, 401);
-    assert.equal(r.estado.cadastro, undefined);
-    r.estado.idClaims.firebase = { sign_in_provider: 'password' }; r.estado.idClaims.email = 'Pessoa@EXEMPLO.com';
-    assert.equal((await r.pedir('/auth/firebase/register', { idToken: 'token', nome: ' Pessoa ' })).status, 200);
-    assert.deepEqual(r.estado.cadastro, [projeto, 'firebase-uid', 'Pessoa', 'pessoa@exemplo.com']);
-    assert.equal((await (await r.pedir('/catalogo/api/privado')).json()).isAdmin, false);
-});
-
-test('configuração web expõe somente campos públicos e cadastro respeita flag e conflitos', async t => {
-    const r = await iniciar(t, true, true); await r.pagina();
-    const config = await (await r.pedir('/auth/firebase/config')).json();
-    assert.deepEqual(Object.keys(config).sort(), ['apiKey', 'appId', 'authDomain', 'projectId']);
-    r.estado.idClaims.firebase = { sign_in_provider: 'password' };
-    r.estado.erroCadastro = { code: 'CADASTRO_CONFLITO' };
-    const conflito = await r.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' });
-    assert.equal(conflito.status, 409); assert.equal((await conflito.json()).codigo, 'CADASTRO_CONFLITO');
-    assert.ok(!r.cookies.has('bikonfig.firebase'));
-    const desligado = await iniciar(t); await desligado.pagina();
-    assert.equal((await desligado.pedir('/auth/firebase/config')).status, 404);
-    assert.equal((await desligado.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' })).status, 503);
-    assert.equal(desligado.estado.chamadas.length, 0);
-});
-
-
 test('Google exige CSRF, provedor Google e e-mail verificado, rejeitando dados de identidade enviados pelo navegador', async t => {
     const r = await iniciar(t, true, true); await r.pagina();
     assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' }, { 'x-csrf-token': '' })).status, 403);
@@ -205,37 +170,6 @@ test('primeiro acesso Google cria conta com dados validados; acesso vinculado pr
     assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' })).status, 200);
     assert.equal(r.estado.cadastro, undefined);
     assert.equal((await (await r.pedir('/catalogo/api/privado')).json()).isAdmin, false);
-});
-
-test('Google não vincula automaticamente conta conflitante e permanece inativo quando a interface está desabilitada', async t => {
-    const r = await iniciar(t, true, true); await r.pagina(); r.estado.usuario = null;
-    Object.assign(r.estado.idClaims, { firebase: { sign_in_provider: 'google.com' }, email_verified: true });
-    r.estado.erroCadastro = { code: 'CADASTRO_CONFLITO' };
-    const resposta = await r.pedir('/auth/firebase/google', { idToken: 'token' });
-    assert.equal(resposta.status, 409); assert.equal((await resposta.json()).codigo, 'CADASTRO_CONFLITO');
-    assert.ok(!r.cookies.has('bikonfig.firebase'));
-    const desligado = await iniciar(t); await desligado.pagina();
-    assert.equal((await desligado.pedir('/auth/firebase/google', { idToken: 'token' })).status, 503);
-    assert.equal(desligado.estado.chamadas.length, 0);
-});
-
-
-test('migração exige CSRF, senha antiga, token recente e campos estritos antes de associar', async t => {
-    const r = await iniciar(t, true, true); await r.pagina();
-    const body = { idToken: 'token', usuario: 'antigo', senha: 'SenhaAntiga123!' };
-    assert.equal((await r.pedir('/auth/firebase/link', body, { 'x-csrf-token': '' })).status, 403);
-    assert.equal((await r.pedir('/auth/firebase/link', { ...body, usuarioId: 'outro' })).status, 400);
-    assert.equal((await r.pedir('/auth/firebase/link', { ...body, senha: '' })).status, 400);
-    r.estado.idClaims.firebase = { sign_in_provider: 'google.com' };
-    r.estado.idClaims.email_verified = false;
-    assert.equal((await r.pedir('/auth/firebase/link', body)).status, 401);
-    assert.equal(r.estado.migracao, undefined);
-    r.estado.idClaims.email_verified = true;
-    r.estado.erroMigracao = { code: 'MIGRACAO_RECUSADA' };
-    assert.equal((await r.pedir('/auth/firebase/link', body)).status, 409);
-    r.estado.erroMigracao = null;
-    assert.equal((await r.pedir('/auth/firebase/link', body)).status, 200);
-    assert.deepEqual(r.estado.migracao, [projeto, 'firebase-uid', 'antigo', 'SenhaAntiga123!', 'nao-usar@cliente.invalid']);
 });
 
 test('sessão legada é invalidada depois do vínculo, sem permitir contornar a senha Firebase', async t => {

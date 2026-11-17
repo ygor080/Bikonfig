@@ -13,28 +13,6 @@ class IdentidadeFirebaseModel {
         return rows.length > 0;
     }
 
-    static async migrar(projectId, uid, nome, senha, email) {
-        validar(projectId, uid);
-        const client = await pool.connect();
-        const conflito = () => Object.assign(new Error('Não foi possível migrar a conta.'), { code: 'MIGRACAO_RECUSADA' });
-        try {
-            await client.query('BEGIN');
-            const { rows: [usuario] } = await client.query('SELECT id, nome, email, senha, is_admin AS "isAdmin" FROM usuarios WHERE nome = $1 FOR UPDATE', [nome]);
-            if (!usuario || !await bcrypt.compare(senha, usuario.senha)
-                || usuario.email.trim().toLowerCase() !== email) throw conflito();
-            // Não move vínculos existentes nem associa apenas pela coincidência de e-mail.
-            await client.query(`INSERT INTO usuarios_identidades (usuario_id, firebase_project_id, firebase_uid)
-                VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [usuario.id, projectId, uid]);
-            const { rows } = await client.query(`SELECT usuario_id FROM usuarios_identidades
-                WHERE usuario_id = $1 AND firebase_project_id = $2 AND firebase_uid = $3`, [usuario.id, projectId, uid]);
-            if (rows.length !== 1) throw conflito();
-            await client.query('COMMIT');
-            const { senha: descartada, ...publico } = usuario;
-            return publico;
-        } catch (erro) { await client.query('ROLLBACK'); throw erro; }
-        finally { client.release(); }
-    }
-
     static async cadastrar(projectId, uid, nome, email) {
         validar(projectId, uid);
         const client = await pool.connect();
@@ -75,7 +53,7 @@ class IdentidadeFirebaseModel {
         return rows[0] || null;
     }
 
-    // Utilitário interno. A rota pública usa migrar(), com prova das duas credenciais.
+    // Utilitário interno; não há rota pública para associar contas existentes.
     static async vincular(usuarioId, projectId, uid) {
         validar(projectId, uid);
         await pool.query(`INSERT INTO usuarios_identidades (usuario_id, firebase_project_id, firebase_uid)

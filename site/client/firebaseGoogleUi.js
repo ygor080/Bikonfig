@@ -1,7 +1,7 @@
 function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
     const botao = doc.getElementById('entrarGoogle');
     if (!botao) return;
-    const form = doc.querySelector('form[data-firebase="true"]');
+    const form = doc.querySelector('form.form-login');
     const enviar = form.querySelector('[type="submit"]');
     const erro = doc.getElementById('erroFirebase'), status = doc.getElementById('statusFirebase');
     let sdk;
@@ -45,7 +45,7 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
                 'auth/account-exists-with-different-credential': 'Este e-mail usa outra forma de acesso. Entre pelo método original; as contas não serão vinculadas automaticamente.',
                 'auth/network-request-failed': 'Não foi possível conectar. Confira sua conexão e tente novamente.',
                 'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
-                CADASTRO_CONFLITO: 'Já existe uma conta com esses dados. Use a forma de acesso original até a migração; o Google não será vinculado automaticamente.',
+                CADASTRO_CONFLITO: 'Já existe uma conta com esses dados. Entre com seu usuário e senha. O Google não será vinculado automaticamente.',
                 CSRF: 'A página expirou. Atualize antes de tentar novamente.'
             };
             status.textContent = ''; mostrarErro(mensagens[e.code] || 'Não foi possível entrar com Google agora. Tente novamente em alguns instantes.');

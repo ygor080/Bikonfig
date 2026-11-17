@@ -20,11 +20,8 @@ function lerConfigFirebase(env = process.env) {
     }
     if (env.NODE_ENV === 'production' && env.FIREBASE_AUTH_EMULATOR_HOST) throw new Error('Emulador Firebase não é permitido em produção.');
     if (env.FIREBASE_WEB_ENABLED && !['true', 'false'].includes(env.FIREBASE_WEB_ENABLED)) throw new Error('FIREBASE_WEB_ENABLED deve ser true ou false.');
-    if (env.FIREBASE_LEGACY_ENABLED !== undefined && !['true', 'false'].includes(env.FIREBASE_LEGACY_ENABLED)) throw new Error('FIREBASE_LEGACY_ENABLED deve ser true ou false.');
-    if (env.FIREBASE_LEGACY_ENABLED === 'false' && env.FIREBASE_WEB_ENABLED !== 'true') throw new Error('Mantenha a interface Firebase ativa antes de encerrar o acesso antigo.');
     return { habilitado: true, projectId, dominios: [...new Set(dominios)],
         webHabilitado: env.FIREBASE_WEB_ENABLED === 'true',
-        legadoHabilitado: env.FIREBASE_LEGACY_ENABLED !== 'false',
         publica: { apiKey, authDomain, projectId, appId } };
 }
 

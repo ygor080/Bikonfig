@@ -34,23 +34,11 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     app.use(require('./middleware/csrf'));
     app.use((req, res, next) => {
         res.locals.firebaseDisponivel = firebase.webHabilitado;
-        res.locals.firebaseUi = firebase.webHabilitado && req.query.legado !== '1';
-        res.locals.legadoDisponivel = !configFirebaseWeb.habilitado || configFirebaseWeb.legadoHabilitado;
         res.locals.sessaoFirebase = Boolean(req.session.firebaseAuth);
         next();
     });
     app.get('/auth/firebase/config', firebase.configurar);
-    app.post('/auth/firebase/session', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.entrar);
-    app.post('/auth/firebase/register', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.cadastrar);
     app.post('/auth/firebase/google', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.entrarGoogle);
-    app.post('/auth/firebase/link', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.migrar);
-    app.use((req, res, next) => {
-        if (configFirebaseWeb.habilitado && !configFirebaseWeb.legadoHabilitado && ['/login', '/cadastro'].includes(req.path)) {
-            if (req.method === 'POST') return res.status(403).send('O acesso anterior foi encerrado. Entre pelo Firebase ou migre sua conta em /migrar-conta.');
-            if (req.query.legado === '1') return res.redirect(req.path);
-        }
-        next();
-    });
     app.use('/', require('./routes/authRoutes'));
     app.use('/catalogo', require('./routes/catalogoRoutes'));
     app.use('/admin', require('./routes/adminRoutes'));

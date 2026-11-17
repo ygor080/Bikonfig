@@ -14,7 +14,7 @@ function verificarCredencial(config, env, ler = arquivo => fs.readFileSync(arqui
     } catch { return ['Credencial ausente, inválida ou de outro projeto. Confira o Secret File sem publicar seu conteúdo.']; }
 }
 
-async function verificarVinculos(pool, projectId) {
+async function verificarVinculos(pool) {
     const { rows: [tabela] } = await pool.query("SELECT to_regclass('usuarios_identidades') IS NOT NULL AS existe");
     if (!tabela.existe) return { pendencias: ['Aplique database/migrations/031_vinculos_firebase.sql antes de usar os vínculos.'] };
     const { rows: [acesso] } = await pool.query(`SELECT row_security_active('usuarios_identidades'::regclass) AS rls_ativo,
@@ -26,14 +26,6 @@ async function verificarVinculos(pool, projectId) {
         (SELECT COUNT(*) FROM usuarios_identidades) AS vinculos,
         (SELECT COUNT(*) FROM (SELECT lower(btrim(email)) FROM usuarios GROUP BY lower(btrim(email)) HAVING COUNT(*) > 1) d) AS grupos_email_repetido
         FROM usuarios`, ['^\\$2[aby]\\$[0-9]{2}\\$[./A-Za-z0-9]{53}$']);
-    let migracao;
-    if (projectId) {
-        const { rows: [contagem] } = await pool.query(`SELECT COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM usuarios_identidades i WHERE i.usuario_id = u.id AND i.firebase_project_id = $1)) AS vinculados,
-            COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM usuarios_identidades i WHERE i.usuario_id = u.id AND i.firebase_project_id = $1)) AS sem_vinculo
-            FROM usuarios u`, [projectId]);
-        migracao = contagem;
-    }
-    return { pendencias: [], resumo, ...(migracao ? { migracao } : {}) };
+    return { pendencias: [], resumo };
 }
 module.exports = { verificarCredencial, verificarVinculos };

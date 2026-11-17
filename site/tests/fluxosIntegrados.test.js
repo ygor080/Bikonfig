@@ -339,15 +339,9 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         const diagnostico = await verificarVinculos(pool);
         assert.deepEqual(diagnostico.pendencias, []); assert.ok(Number(diagnostico.resumo.com_bcrypt) >= 2);
     });
-    await t.test('endpoint Firebase respeita CSRF e fica inativo sem configurar o projeto', async () => {
-        const paginaRecuperar = await (await cliente().pedir('/recuperar-senha')).text();
-        assert.match(paginaRecuperar, /ainda não está disponível/);
-        assert.ok(!paginaRecuperar.includes('firebase-auth.bundle.js'));
-        const semCsrf = await fetch(base + '/auth/firebase/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"idToken":"nao-validar"}' });
-        assert.equal(semCsrf.status, 403);
-        const desabilitado = await dono.pedir('/auth/firebase/session', { idToken: 'nao-validar' });
-        assert.equal(desabilitado.status, 503);
-        assert.equal((await desabilitado.json()).codigo, 'FIREBASE_DESABILITADO');
+    await t.test('rotas de e-mail Firebase e migração foram removidas', async () => {
+        for (const rota of ['/auth/firebase/session', '/auth/firebase/register', '/auth/firebase/link']) assert.equal((await cliente().pedir(rota, { idToken: 'token' })).status, 404);
+        assert.equal((await cliente().pedir('/migrar-conta')).status, 404);
     });
     await t.test('cadastro Firebase cria usuário sem senha utilizável, é idempotente e não associa e-mails antigos', async () => {
         const Identidade = require('../models/identidadeFirebaseModel');
@@ -398,19 +392,23 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.equal(semCsrf.status, 403);
         assert.equal((await visitante.pedir('/recuperar-senha', { email: 'nao-enviar@teste.com' })).status, 405);
         const pagina = await visitante.pedir('/login'), html = await pagina.text();
-        assert.match(html, /data-firebase="true"/); assert.match(html, /name="email"/);
-        assert.match(html, /firebase-auth.bundle.js/); assert.match(html, /login\?legado=1/);
+        assert.match(html, /name="usuario"/); assert.match(html, /action="\/login"/);
+        assert.match(html, /firebase-auth.bundle.js/); assert.ok(!html.includes('legado=1'));
         const csp = pagina.headers.get('content-security-policy');
         assert.match(csp, /connect-src 'self' https:\/\/identitytoolkit.googleapis.com https:\/\/securetoken.googleapis.com https:\/\/bikonfig-test.firebaseapp.com;/);
         assert.match(csp, /script-src 'self' https:\/\/apis.google.com;/); assert.ok(!csp.includes('unsafe-inline'));
         const legado = await (await visitante.pedir('/login?legado=1')).text();
-        assert.match(legado, /name="usuario"/); assert.match(legado, /action="\/login\?legado=1"/);
-        assert.ok(!legado.includes('firebase-auth.bundle.js'));
+        assert.match(legado, /name="usuario"/); assert.match(legado, /action="\/login"/);
+        assert.ok(legado.includes('firebase-auth.bundle.js'));
         const erro = await (await visitante.pedir('/login?legado=1', { usuario: 'dono', senha: 'incorreta' })).text();
-        assert.match(erro, /Usuário ou senha inválidos/); assert.match(erro, /data-firebase="false"/);
-        assert.match(erro, /cadastro\?legado=1/);
+        assert.match(erro, /Usuário ou senha inválidos/);
+        assert.match(erro, /href="\/cadastro"/);
         assert.match(html, /id="entrarGoogle"/);
-        assert.match(html, /href="\/recuperar-senha"/);
+        assert.ok(!html.includes('Acessar com e-mail pelo Firebase'));
+        assert.ok(!html.includes('migrar-conta'));
+        for (const rota of ['/auth/firebase/session', '/auth/firebase/register', '/auth/firebase/link']) assert.equal((await cliente().pedir(rota, { idToken: 'token' })).status, 404);
+        assert.equal((await cliente().pedir('/migrar-conta')).status, 404);
+
         assert.match(csp, /frame-src https:\/\/bikonfig-test.firebaseapp.com;/);
         const google = cliente();
         assert.equal((await google.pedir('/auth/firebase/google', { idToken: 'token-google' })).status, 200);
@@ -431,51 +429,5 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         } finally { Object.assign(claimsGoogle, anterior); }
     });
 
-    await t.test('migração comprova senha e identidade, mantém montagem e encerra sessões e login legados', async () => {
-        const Identidade = require('../models/identidadeFirebaseModel');
-        const hash = await bcrypt.hash(senha, 10);
-        const { rows: [antigo] } = await db.query('INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) RETURNING id', ['migrando', 'migrando@teste.com', hash]);
-        const { rows: [config] } = await db.query('INSERT INTO configuracoes (usuario_id, nome) VALUES ($1, $2) RETURNING id', [antigo.id, 'Minha montagem antiga']);
-        await db.query('INSERT INTO configuracao_itens (configuracao_id, produto_id, posicao) VALUES ($1, $2, $3)', [config.id, pneu, 'pneu_dianteiro']);
-        const claims = { uid: 'uid-migracao', sub: 'uid-migracao', aud: 'bikonfig-test', iss: 'https://securetoken.google.com/bikonfig-test',
-            auth_time: Math.floor(Date.now() / 1000), firebase: { sign_in_provider: 'password' }, email_verified: true, email: 'migrando@teste.com', admin: true };
-        const sdk = { verifyIdToken: async () => claims, createSessionCookie: async () => 'cookie-migracao',
-            verifySessionCookie: async () => ({ ...claims, iss: 'https://session.firebase.google.com/bikonfig-test' }) };
-        const configEnv = { FIREBASE_ENABLED: 'true', FIREBASE_WEB_ENABLED: 'true', FIREBASE_PROJECT_ID: 'bikonfig-test',
-            FIREBASE_WEB_API_KEY: 'AIza-chave-publica-de-testes-123456789', FIREBASE_AUTH_DOMAIN: 'bikonfig-test.firebaseapp.com',
-            FIREBASE_WEB_APP_ID: '1:123456:web:abcdef', FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]' };
-        base = await iniciar(configEnv, sdk);
-        const primeiro = cliente(), segundo = cliente();
-        for (const c of [primeiro, segundo]) assert.equal((await c.pedir('/login?legado=1', { usuario: 'migrando', senha })).status, 302);
-        const paginaMigrar = await primeiro.pedir('/migrar-conta'); assert.equal(paginaMigrar.status, 200);
-        verificarFormularios(await paginaMigrar.text());
-        const body = { idToken: 'token', usuario: 'migrando', senha };
-        assert.equal((await primeiro.pedir('/auth/firebase/link', { ...body, senha: 'errada' })).status, 409);
-        assert.equal(await Identidade.buscar('bikonfig-test', claims.uid), null);
-        await assert.rejects(Identidade.migrar('bikonfig-test', claims.uid, 'migrando', senha, 'outro@teste.com'), { code: 'MIGRACAO_RECUSADA' });
-        assert.equal((await primeiro.pedir('/auth/firebase/link', body)).status, 200);
-        const vinculado = await Identidade.buscar('bikonfig-test', claims.uid);
-        assert.equal(vinculado.id, antigo.id); assert.equal(vinculado.isAdmin, false);
-        assert.equal((await db.query('SELECT usuario_id FROM configuracoes WHERE id = $1', [config.id])).rows[0].usuario_id, antigo.id);
-        assert.equal((await db.query('SELECT COUNT(*) AS n FROM configuracao_itens WHERE configuracao_id = $1', [config.id])).rows[0].n, 1);
-        assert.equal((await primeiro.pedir('/home')).status, 200);
-        assert.equal((await segundo.pedir('/home')).status, 302);
-        const legado = cliente();
-        assert.match(await (await legado.pedir('/login?legado=1', { usuario: 'migrando', senha })).text(), /já foi migrada/);
-        assert.equal((await legado.pedir('/home')).status, 302);
-        assert.equal((await primeiro.pedir('/auth/firebase/link', body)).status, 200);
-        await assert.rejects(Identidade.migrar('bikonfig-test', 'uid-troca', 'migrando', senha, 'migrando@teste.com'), { code: 'MIGRACAO_RECUSADA' });
-        const outro = (await db.query("SELECT nome, email FROM usuarios WHERE nome = 'outro'")).rows[0];
-        await assert.rejects(Identidade.migrar('bikonfig-test', claims.uid, outro.nome, senha, outro.email), { code: 'MIGRACAO_RECUSADA' });
-        const administrador = (await db.query("SELECT nome, email FROM usuarios WHERE nome = 'admin'")).rows[0];
-        assert.equal((await Identidade.migrar('bikonfig-test', 'uid-admin-migrado', administrador.nome, senha, administrador.email)).isAdmin, true);
-        const diagnostico = await require('../config/verificacaoFirebase').verificarVinculos(pool, 'bikonfig-test');
-        assert.ok(Number(diagnostico.migracao.vinculados) >= 2); assert.ok(Number(diagnostico.migracao.sem_vinculo) >= 1);
-        base = await iniciar({ ...configEnv, FIREBASE_LEGACY_ENABLED: 'false' }, sdk);
-        const corte = cliente(); assert.equal((await corte.pedir('/login?legado=1')).status, 302);
-        assert.equal((await corte.pedir('/login', { usuario: 'outro', senha })).status, 403);
-        assert.equal((await corte.pedir('/cadastro', { nome: 'nao-criar' })).status, 403);
-        assert.equal((await corte.pedir('/migrar-conta')).status, 200);
-    });
 
 });

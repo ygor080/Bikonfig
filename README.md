@@ -463,22 +463,18 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
-### Validação Firebase no backend e sessões seguras (etapa 32)
+### Login local e Google
 
-O endpoint `POST /auth/firebase/session` valida ID token e login recente,
-exige CSRF e uma identidade já vinculada ao usuário do banco. A sessão
-renova seu ID e usa cookies protegidos; os tokens Firebase não ficam no
-store PostgreSQL nem no JSON. Revogação e permissões são verificadas nas
-requisições autenticadas. Logout limpa os dois cookies e encerra a sessão.
+O cadastro e login por usuário e senha permanecem locais. O Firebase é usado
+na opção Entrar com Google, pelo endpoint POST /auth/firebase/google com CSRF,
+validação do provedor, e-mail verificado, autenticação recente e sessão segura.
+Login/cadastro por e-mail Firebase e migração de contas foram removidos,
+incluindo suas rotas. Os vínculos e dados existentes são preservados.
 
-`FIREBASE_ENABLED=false` mantém o fluxo legado sem chamadas ao SDK. Habilitar
-exige projeto/credencial configurados e a migração 031 aplicada. As telas e
-o vínculo dos novos usuários continuam nas próximas etapas. Não há migração
-nova nesta entrega. Consulte [docs/firebase.md](docs/firebase.md).
-
-160 testes Node aprovados; validação Firebase com SDK simulado e testes
-HTTP/sessão reais. O projeto Firebase real ainda precisa ser configurado
-para testar a integração externa; não houve ativação no banco publicado.
+Configure FIREBASE_ENABLED=true e FIREBASE_WEB_ENABLED=true para Google,
+a credencial do projeto e a tabela da migração SQL 031. Consulte
+[docs/firebase.md](docs/firebase.md). A autorização real depende da configuração
+do Firebase; os testes locais não acessam contas Google reais.
 
 ### Preparação do Firebase e vínculo de usuários (etapa 31)
 
