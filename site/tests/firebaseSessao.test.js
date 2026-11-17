@@ -35,12 +35,13 @@ async function iniciar(t, habilitado = true, web = false) {
     }, cadastrar: async (...args) => {
         estado.cadastro = args;
         if (estado.erroCadastro) throw estado.erroCadastro;
-        return estado.usuario;
+        return estado.novoUsuario || estado.usuario;
     } } });
     app.use(firebase.validarSessao); app.use(require('../middleware/csrf'));
     app.get('/login', (req, res) => res.json({ csrf: res.locals.csrfToken }));
     app.post('/auth/firebase/session', firebase.entrar);
     app.post('/auth/firebase/register', firebase.cadastrar);
+    app.post('/auth/firebase/google', firebase.entrarGoogle);
     app.get('/auth/firebase/config', firebase.configurar);
     app.post('/legado', async (req, res) => { await sessao.autenticarSessao(req, estado.usuario); res.json({ ok: true }); });
     const contexto = { module: { exports: {} }, Buffer, require: nome => nome.includes('usuarioModel') ? {} : sessao };
@@ -171,5 +172,43 @@ test('configuração web expõe somente campos públicos e cadastro respeita fla
     const desligado = await iniciar(t); await desligado.pagina();
     assert.equal((await desligado.pedir('/auth/firebase/config')).status, 404);
     assert.equal((await desligado.pedir('/auth/firebase/register', { idToken: 'token', nome: 'Pessoa' })).status, 503);
+    assert.equal(desligado.estado.chamadas.length, 0);
+});
+
+
+test('Google exige CSRF, provedor Google e e-mail verificado, rejeitando dados de identidade enviados pelo navegador', async t => {
+    const r = await iniciar(t, true, true); await r.pagina();
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' }, { 'x-csrf-token': '' })).status, 403);
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token', isAdmin: true })).status, 400);
+    for (const [provider, verificado] of [['password', true], ['google.com', false], ['google.com', undefined]]) {
+        r.estado.idClaims.firebase = { sign_in_provider: provider }; r.estado.idClaims.email_verified = verificado;
+        assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' })).status, 401);
+    }
+    assert.equal(r.estado.cadastro, undefined); assert.ok(!r.cookies.has('bikonfig.firebase'));
+});
+
+test('primeiro acesso Google cria conta com dados validados; acesso vinculado preserva usuário e permissões do banco', async t => {
+    const r = await iniciar(t, true, true); await r.pagina();
+    const usuario = r.estado.usuario; r.estado.usuario = null; r.estado.novoUsuario = usuario;
+    Object.assign(r.estado.idClaims, { firebase: { sign_in_provider: 'google.com' }, email_verified: true,
+        email: 'Google@EXEMPLO.com', name: 'Pessoa Google' });
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' })).status, 200);
+    assert.equal(r.estado.cadastro[0], projeto); assert.equal(r.estado.cadastro[1], 'firebase-uid');
+    assert.match(r.estado.cadastro[2], /^Pessoa Google-[a-f0-9]{16}$/); assert.equal(r.estado.cadastro[3], 'google@exemplo.com');
+    r.estado.usuario = usuario; r.estado.cadastro = undefined; await r.pagina();
+    assert.equal((await r.pedir('/auth/firebase/google', { idToken: 'token' })).status, 200);
+    assert.equal(r.estado.cadastro, undefined);
+    assert.equal((await (await r.pedir('/catalogo/api/privado')).json()).isAdmin, false);
+});
+
+test('Google não vincula automaticamente conta conflitante e permanece inativo quando a interface está desabilitada', async t => {
+    const r = await iniciar(t, true, true); await r.pagina(); r.estado.usuario = null;
+    Object.assign(r.estado.idClaims, { firebase: { sign_in_provider: 'google.com' }, email_verified: true });
+    r.estado.erroCadastro = { code: 'CADASTRO_CONFLITO' };
+    const resposta = await r.pedir('/auth/firebase/google', { idToken: 'token' });
+    assert.equal(resposta.status, 409); assert.equal((await resposta.json()).codigo, 'CADASTRO_CONFLITO');
+    assert.ok(!r.cookies.has('bikonfig.firebase'));
+    const desligado = await iniciar(t); await desligado.pagina();
+    assert.equal((await desligado.pedir('/auth/firebase/google', { idToken: 'token' })).status, 503);
     assert.equal(desligado.estado.chamadas.length, 0);
 });

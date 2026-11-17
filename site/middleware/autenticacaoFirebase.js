@@ -4,6 +4,7 @@ const INVALIDOS = new Set(['auth/argument-error', 'auth/invalid-argument', 'auth
     'auth/id-token-expired', 'auth/id-token-revoked', 'auth/session-cookie-expired', 'auth/session-cookie-revoked',
     'auth/invalid-session-cookie', 'auth/user-disabled', 'auth/user-not-found']);
 const DURACAO = 3600000;
+const { createHash } = require('node:crypto');
 
 async function comPrazo(operacao) {
     let timer;
@@ -46,14 +47,15 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
     }
 
     async function autenticar(req, res, cadastro = false) {
+        const google = cadastro === 'google';
         if (!config.habilitado) return res.status(503).json({ erro: 'Integração Firebase ainda desabilitada.', codigo: 'FIREBASE_DESABILITADO' });
         if (cadastro && !config.webHabilitado) return res.status(503).json({ erro: 'Cadastro Firebase ainda desabilitado.' });
-        if (!req.body || Array.isArray(req.body) || Object.keys(req.body).some(chave => !(cadastro ? ['idToken', 'nome'] : ['idToken']).includes(chave))
+        if (!req.body || Array.isArray(req.body) || Object.keys(req.body).some(chave => !(cadastro && !google ? ['idToken', 'nome'] : ['idToken']).includes(chave))
             || typeof req.body.idToken !== 'string' || !req.body.idToken.length || req.body.idToken.length > 16384) {
             return res.status(400).json({ erro: 'Informe apenas um ID token Firebase válido.' });
         }
         const nome = typeof req.body.nome === 'string' ? req.body.nome.trim() : '';
-        if (cadastro && (nome.length < 3 || nome.length > 40)) return res.status(400).json({ erro: 'Informe um usuário entre 3 e 40 caracteres.' });
+        if (cadastro && !google && (nome.length < 3 || nome.length > 40)) return res.status(400).json({ erro: 'Informe um usuário entre 3 e 40 caracteres.' });
         let claims, sessionCookie;
         try {
             const sdk = obterAuth();
@@ -71,7 +73,20 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
         }
         let usuario;
         try {
-            if (cadastro) {
+            if (google) {
+                if (claims.firebase?.sign_in_provider !== 'google.com' || claims.email_verified !== true
+                    || typeof claims.email !== 'string' || claims.email.length > 254
+                    || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(claims.email.trim())) {
+                    return res.status(401).json({ erro: 'Use uma conta Google com e-mail verificado.', codigo: 'GOOGLE_IDENTIDADE_INVALIDA' });
+                }
+                usuario = await obterIdentidades().buscar(config.projectId, claims.uid);
+                if (!usuario) {
+                    const base = (typeof claims.name === 'string' ? claims.name.replace(/[\u0000-\u001f\u007f]/g, '').trim() : '') || 'Google';
+                    const sufixo = createHash('sha256').update(config.projectId + '\0' + claims.uid).digest('hex').slice(0, 16);
+                    usuario = await obterIdentidades().cadastrar(config.projectId, claims.uid,
+                        base.slice(0, 20) + '-' + sufixo, claims.email.trim().toLowerCase());
+                }
+            } else if (cadastro) {
                 if (claims.firebase?.sign_in_provider !== 'password' || typeof claims.email !== 'string'
                     || claims.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(claims.email.trim())) {
                     return res.status(401).json({ erro: 'Use uma identidade Firebase de e-mail e senha para concluir este cadastro.' });
@@ -93,6 +108,7 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
         webHabilitado: config.habilitado && config.webHabilitado,
         entrar: (req, res) => autenticar(req, res),
         cadastrar: (req, res) => autenticar(req, res, true),
+        entrarGoogle: (req, res) => autenticar(req, res, 'google'),
         configurar(req, res) {
             if (!config.habilitado || !config.webHabilitado) return res.status(404).json({ erro: 'Configuração web indisponível.' });
             res.json(config.publica);
@@ -100,7 +116,7 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
         async validarSessao(req, res, next) {
             const sessao = req.session.firebaseAuth;
             if (!sessao || req.path === '/logout' && req.method === 'POST'
-                || ['/auth/firebase/session', '/auth/firebase/register'].includes(req.path)) return next();
+                || ['/auth/firebase/session', '/auth/firebase/register', '/auth/firebase/google'].includes(req.path)) return next();
             if (!config.habilitado || sessao.projectId !== config.projectId) return invalidar(req, res);
             let claims;
             try {

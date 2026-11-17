@@ -1,8 +1,7 @@
 # Preparação do Firebase — etapa 31
 
 Este guia começou na etapa 31 com configuração, SDK Admin e vínculo de contas. O login
-existente continua usando os usuários e as sessões atuais. Não há login
-Google, recuperação de senha ou envio de e-mail Firebase ainda; esses fluxos
+existente continua usando os usuários e as sessões atuais. Não há recuperação de senha ou envio de e-mail Firebase ainda; esses fluxos
 serão integrados nas próximas etapas. Nenhum usuário foi importado.
 
 ## 1. Criar o projeto e o aplicativo web
@@ -203,13 +202,12 @@ Para ativar depois de configurar e validar o projeto:
 
 `/login` passa a usar e-mail; `/login?legado=1` preserva o acesso antigo por
 usuário. Os formulários e links antigos mantêm o parâmetro também nos erros.
-Contas antigas não são vinculadas automaticamente por e-mail. Google,
-recuperação de senha e migração continuam nas etapas seguintes.
+Contas antigas não são vinculadas automaticamente por e-mail. Recuperação de senha e migração continuam nas etapas seguintes.
 
 O navegador guarda a identidade Firebase somente em memória e troca um ID token
 por cookies de sessão HttpOnly. Senhas e tokens não são gravados no armazenamento
-do navegador nem incluídos na sessão Express. A CSP permite conexões apenas aos
-dois endpoints oficiais de autenticação necessários, além da própria origem.
+do navegador nem incluídos na sessão Express. Na etapa 33, a CSP libera os dois endpoints de autenticação; a etapa 34 amplia
+a política para o auxiliar do popup Google e a origem authDomain configurada.
 Referências: [login por senha](https://firebase.google.com/docs/auth/web/password-auth)
 e [persistência em memória](https://firebase.google.com/docs/auth/web/auth-state-persistence).
 
@@ -230,3 +228,57 @@ falha local, pois uma tentativa concorrente pode já ter concluído o cadastro.
 Validação automatizada usa SDK simulado, HTTP com CSRF real, DOM e PostgreSQL
 temporário. O teste com um projeto Firebase real depende da configuração do
 projeto pelo responsável e ainda deve ser realizado antes da ativação.
+
+## Acesso Google — etapa 34
+
+As telas Firebase de login e cadastro agora oferecem **Entrar com Google**, além
+do formulário de e-mail e senha da etapa 33. O acesso antigo continua disponível
+em /login?legado=1. Não é necessário executar nova migração SQL: continua sendo
+necessária a 031.
+
+Para ativar, mantenha FIREBASE_ENABLED=true e FIREBASE_WEB_ENABLED=true no
+Render, usando configuração e credencial do mesmo projeto Firebase. Em
+Authentication → Método de login, habilite Google e configure o e-mail de
+suporte. Em Authentication → Configurações → Domínios autorizados, inclua o
+hostname publicado e os hosts de desenvolvimento utilizados. Não precisa
+informar client secret OAuth ao navegador ou criar outra variável de ambiente.
+
+O SDK oficial abre um popup com seleção da conta Google. Permita popups para
+o site e use um navegador compatível, fora de navegadores embutidos de redes
+sociais. O cliente é preparado antes do clique para preservar o gesto do usuário;
+se a preparação falhar, o botão permite tentar carregá-lo novamente. Cancelamento,
+janela bloqueada, domínio não autorizado, conflitos e falhas de conexão têm
+mensagens próprias e liberam nova tentativa. Não há redirecionamento automático
+como alternativa nesta entrega, pois requer configuração adicional para
+navegadores que bloqueiam armazenamento de terceiros.
+
+POST /auth/firebase/google recebe somente idToken, com CSRF e limite de
+tentativas. O servidor exige token recente, válido e não revogado do projeto
+configurado, provedor google.com e e-mail verificado. UID e e-mail vêm do token;
+o cliente não escolhe identidade, nome local ou permissões. Uma identidade já
+vinculada conserva usuário, montagens e permissões do banco. No primeiro acesso,
+uma conta sem privilégios é criada em transação com seu vínculo. O nome local
+usa o nome do perfil com um sufixo estável derivado do projeto e UID, respeitando
+a unicidade do usuário. Repetir o acesso não duplica a conta.
+
+Se o e-mail já existir em outra conta local, o acesso retorna conflito e orienta
+a entrar pelo método original. Não há associação automática por coincidência de
+e-mail nem operação de vincular provedores no cliente. Se o Firebase informar
+account-exists-with-different-credential, a interface também orienta a usar o
+método original. A migração das contas antigas permanece em etapa própria.
+
+A persistência do SDK continua em memória; a sessão do site usa cookies
+HttpOnly. Nenhum access token Google é enviado ao backend ou armazenado pelo
+Bikonfig. A CSP libera o script auxiliar em https://apis.google.com e o iframe
+somente na origem authDomain configurada, mantendo scripts inline bloqueados.
+O bundle deve ser regenerado com npm --prefix site run build:auth após mudanças.
+
+Validação: 173 testes Node, incluindo popup simulado, cancelamento, bloqueio,
+CSRF, provedor, e-mail verificado, conflitos, reentrada e integração com SQL
+e sessões reais em banco temporário. Antes de liberar, valide com uma conta
+Google de teste no site: entrar, sair, entrar de novo, cancelar o popup, testar
+em celular e conferir que as montagens persistem. A autorização Google real
+depende das credenciais e domínios do projeto e não é comprovada pelos testes
+automatizados.
+
+Referência: [Google com Firebase](https://firebase.google.com/docs/auth/web/google-signin).

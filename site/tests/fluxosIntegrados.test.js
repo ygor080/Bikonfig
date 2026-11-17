@@ -54,10 +54,10 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     t.after(() => { if (anterior) require.cache[bancoPath] = anterior; else delete require.cache[bancoPath]; });
     const { criarApp } = require('../app');
     const env = { SECRET: 'segredo-exclusivo-de-testes-integrados-0123456789', NODE_ENV: 'test' };
-    async function iniciar(extraEnv = {}) {
+    async function iniciar(extraEnv = {}, firebaseAuth) {
         const store = new PgSession({ pool, tableName: 'sessoes_site', createTableIfMissing: true, pruneSessionInterval: false });
         stores.push(store);
-        const server = criarApp({ env: { ...env, ...extraEnv }, pool, store }).listen(0, '127.0.0.1');
+        const server = criarApp({ env: { ...env, ...extraEnv }, pool, store, firebaseAuth }).listen(0, '127.0.0.1');
         servers.push(server);
         await new Promise(resolve => server.on('listening', resolve));
         return `http://127.0.0.1:${server.address().port}`;
@@ -376,22 +376,46 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
     });
 
     await t.test('interface Firebase ativa mantém acesso legado, erros de formulário e CSP restrita', async () => {
+        const claimsGoogle = { uid: 'uid-google-integrado', sub: 'uid-google-integrado', aud: 'bikonfig-test',
+            iss: 'https://securetoken.google.com/bikonfig-test', auth_time: Math.floor(Date.now() / 1000),
+            firebase: { sign_in_provider: 'google.com' }, email_verified: true, email: 'google-integrado@teste.com', name: 'Pessoa Google' };
+        const sdk = { verifyIdToken: async () => claimsGoogle, createSessionCookie: async () => 'cookie-google-integrado',
+            verifySessionCookie: async () => ({ ...claimsGoogle, iss: 'https://session.firebase.google.com/bikonfig-test' }) };
         base = await iniciar({ FIREBASE_ENABLED: 'true', FIREBASE_WEB_ENABLED: 'true', FIREBASE_PROJECT_ID: 'bikonfig-test',
             FIREBASE_WEB_API_KEY: 'AIza-chave-publica-de-testes-123456789', FIREBASE_AUTH_DOMAIN: 'bikonfig-test.firebaseapp.com',
-            FIREBASE_WEB_APP_ID: '1:123456:web:abcdef', FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]' });
+            FIREBASE_WEB_APP_ID: '1:123456:web:abcdef', FIREBASE_AUTHORIZED_DOMAINS_JSON: '["localhost"]' }, sdk);
         const visitante = cliente();
         const pagina = await visitante.pedir('/login'), html = await pagina.text();
         assert.match(html, /data-firebase="true"/); assert.match(html, /name="email"/);
         assert.match(html, /firebase-auth.bundle.js/); assert.match(html, /login\?legado=1/);
         const csp = pagina.headers.get('content-security-policy');
-        assert.match(csp, /connect-src 'self' https:\/\/identitytoolkit.googleapis.com https:\/\/securetoken.googleapis.com;/);
-        assert.match(csp, /script-src 'self';/); assert.ok(!csp.includes('unsafe-inline'));
+        assert.match(csp, /connect-src 'self' https:\/\/identitytoolkit.googleapis.com https:\/\/securetoken.googleapis.com https:\/\/bikonfig-test.firebaseapp.com;/);
+        assert.match(csp, /script-src 'self' https:\/\/apis.google.com;/); assert.ok(!csp.includes('unsafe-inline'));
         const legado = await (await visitante.pedir('/login?legado=1')).text();
         assert.match(legado, /name="usuario"/); assert.match(legado, /action="\/login\?legado=1"/);
         assert.ok(!legado.includes('firebase-auth.bundle.js'));
         const erro = await (await visitante.pedir('/login?legado=1', { usuario: 'dono', senha: 'incorreta' })).text();
         assert.match(erro, /Usuário ou senha inválidos/); assert.match(erro, /data-firebase="false"/);
         assert.match(erro, /cadastro\?legado=1/);
+        assert.match(html, /id="entrarGoogle"/);
+        assert.match(csp, /frame-src https:\/\/bikonfig-test.firebaseapp.com;/);
+        const google = cliente();
+        assert.equal((await google.pedir('/auth/firebase/google', { idToken: 'token-google' })).status, 200);
+        assert.equal((await google.pedir('/home')).status, 200);
+        const identidade = await require('../models/identidadeFirebaseModel').buscar('bikonfig-test', claimsGoogle.uid);
+        assert.equal(identidade.email, claimsGoogle.email); assert.equal(identidade.isAdmin, false);
+        const quantidade = (await db.query('SELECT COUNT(*) AS total FROM usuarios')).rows[0].total;
+        assert.equal((await google.pedir('/auth/firebase/google', { idToken: 'token-google' })).status, 200);
+        assert.equal((await db.query('SELECT COUNT(*) AS total FROM usuarios')).rows[0].total, quantidade);
+        assert.equal((await google.pedir('/admin/revisao')).status, 403);
+        const antigo = (await db.query("SELECT email FROM usuarios WHERE nome = 'dono'")).rows[0];
+        const anterior = { ...claimsGoogle };
+        Object.assign(claimsGoogle, { uid: 'uid-google-conflito', sub: 'uid-google-conflito', email: antigo.email });
+        try {
+            const conflitoGoogle = cliente();
+            assert.equal((await conflitoGoogle.pedir('/auth/firebase/google', { idToken: 'token-conflito' })).status, 409);
+            assert.equal(await require('../models/identidadeFirebaseModel').buscar('bikonfig-test', 'uid-google-conflito'), null);
+        } finally { Object.assign(claimsGoogle, anterior); }
     });
 
 });

@@ -20,7 +20,7 @@ function iniciar({ doc = document, criarCliente, consultar = fetch, navegar = ur
     }
     form.addEventListener('submit', async evento => {
         evento.preventDefault();
-        if (ocupado) return;
+        if (ocupado || form.dataset.authBusy === 'true') return;
         erro.hidden = true;
         if (!form.reportValidity()) return;
         const senha = campo('senha');
@@ -28,7 +28,7 @@ function iniciar({ doc = document, criarCliente, consultar = fetch, navegar = ur
             || senha !== campo('confirmarSenha'))) {
             mostrarErro('Confira os requisitos da senha e a confirmação.'); return;
         }
-        ocupado = true; botao.disabled = true; form.setAttribute('aria-busy', 'true');
+        ocupado = true; form.dataset.authBusy = 'true'; botao.disabled = true; form.setAttribute('aria-busy', 'true');
         botao.textContent = cadastro ? 'Criando conta…' : 'Entrando…'; status.textContent = botao.textContent;
         try {
             const sdk = await cliente();
@@ -66,8 +66,9 @@ function iniciar({ doc = document, criarCliente, consultar = fetch, navegar = ur
                 CSRF: 'A página expirou. Atualize antes de tentar novamente.'
             };
             status.textContent = ''; mostrarErro(mensagens[e.code] || 'Não foi possível concluir agora. Tente novamente em alguns instantes.');
-        } finally { ocupado = false; botao.disabled = false; botao.textContent = rotulo; form.removeAttribute('aria-busy'); }
+        } finally { ocupado = false; delete form.dataset.authBusy; botao.disabled = false; botao.textContent = rotulo; form.removeAttribute('aria-busy'); }
     });
     botao.disabled = false;
+    require('./firebaseGoogleUi').iniciarGoogle({ doc, obterCliente: cliente, consultar, navegar });
 }
 module.exports = { iniciar };
