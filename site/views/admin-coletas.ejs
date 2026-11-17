@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acompanhamento das coletas - Bikonfig</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <header class="cabecalho"><div class="container">
+        <a href="/" class="logo">Bikonfig</a>
+        <nav aria-label="Administração"><a href="/admin/revisao">Revisão de produtos</a> · <a href="/home">Home</a></nav>
+    </div></header>
+    <main class="container">
+        <div class="catalogo-header"><h1>Acompanhamento das coletas</h1>
+            <p>Últimas 30 execuções registradas. Horários exibidos em Brasília.</p></div>
+        <% const formatar = valor => valor ? new Date(valor).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Sem registro'; %>
+        <section class="admin-card" aria-label="Atualização dos preços">
+            <h2>Preços do catálogo</h2>
+            <p>Última consulta registrada: <%= formatar(precos.ultima_consulta) %></p>
+            <p><%= precos.atualizados %> produtos/variantes ativos consultados nas últimas 36 horas.</p>
+            <% if (Number(precos.atualizados) === 0) { %><p role="status">Nenhuma consulta recente registrada. Verifique o agendamento e os resultados das últimas execuções.</p><% } %>
+            <p>Uma consulta recente não garante atualização de todo o catálogo. Confirme os preços na loja.</p>
+        </section>
+        <% if (!execucoes.length) { %><p class="catalogo-vazio">Nenhuma execução registrada. Verifique a configuração e execute uma coleta manual no GitHub Actions.</p><% } %>
+        <div class="admin-lista">
+        <% execucoes.forEach(function (e) { %>
+            <article class="admin-card">
+                <h2><%= e.interrompida ? 'Execução sem conclusão' : ({success: 'Concluída', error: 'Falhou', running: 'Em andamento'})[e.status] || 'Estado desconhecido' %></h2>
+                <p class="admin-card__nome"><%= e.target_url %></p>
+                <p>Início: <%= formatar(e.started_at) %> · Fim: <%= formatar(e.finished_at) %></p>
+                <% if (e.status === 'success') { %><p><%= e.products_processed %> produtos/variantes processados.</p><% } %>
+                <% if (e.error_code) { %><p>Código: <%= e.error_code %>. Consulte a execução correspondente no GitHub Actions.</p><% } %>
+                <% if (e.interrompida) { %><p>A execução está sem conclusão há mais de 75 minutos. Verifique os logs antes de iniciar outra coleta.</p><% } %>
+            </article>
+        <% }); %>
+        </div>
+    </main>
+</body>
+</html>

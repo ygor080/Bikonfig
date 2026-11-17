@@ -199,6 +199,22 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.deepEqual(await Model.listarItens(montagem), antes);
         assert.equal((await Model.buscarPorId(montagem, usuario.id)).nome, 'Bike editada');
     });
+    await t.test('painel de coletas exige administrador e mostra falhas e execuções sem conclusão', async () => {
+        assert.equal((await outro.pedir('/admin/coletas')).status, 403);
+        await db.exec(`INSERT INTO scrape_runs (target_url, started_at, status) VALUES
+            ('https://loja.test/antiga', now() - interval '80 minutes', 'running');
+            INSERT INTO scrape_runs (target_url, status, error_code, finished_at) VALUES
+            ('<img src=x onerror=alert(1)>', 'error', 'tls_error', now());
+            UPDATE products SET price_checked_at = now() WHERE id = '${quadro}';`);
+        const resposta = await admin.pedir('/admin/coletas');
+        assert.equal(resposta.status, 200);
+        const html = await resposta.text();
+        assert.match(html, /Execução sem conclusão/);
+        assert.match(html, /tls_error/);
+        assert.ok(html.includes('&lt;img'));
+        assert.ok(!html.includes('<img src=x'));
+        assert.match(html, /1 produtos\/variantes ativos consultados/);
+    });
     await t.test('ações reais sem CSRF são rejeitadas e formulários incluem token da sessão', async () => {
         for (const caminho of ['/login', '/cadastro', '/logout', '/catalogo/api/orcamento', '/catalogo/api/pdf',
             '/catalogo/api/configuracoes', '/catalogo/api/configuracoes/' + montagem,

@@ -5,6 +5,15 @@ on:
     # 09:17 UTC = 06:17 em America/Sao_Paulo (UTC-3).
     - cron: '17 9 * * *'
   workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Prévia não grava dados nem usa IA. Coletar atualiza o banco e usa a API.'
+        required: true
+        default: verificar
+        type: choice
+        options:
+          - verificar
+          - coletar
 
 permissions:
   contents: read
@@ -23,6 +32,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       COLETA_URLS_JSON: ${{ vars.COLETA_URLS_JSON }}
+      COLETA_RELATORIO_PATH: ${{ runner.temp }}/coleta-relatorio.json
       PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v7
@@ -40,10 +50,37 @@ jobs:
           sys.path.insert(0, 'api')
           from run_scheduled_scrape import load_targets
           load_targets(os.environ.get('COLETA_URLS_JSON'))
-          if not all(os.environ.get(key) for key in ['DATABASE_URL', 'OPENAI_API_KEY']):
+          if '${{ github.event_name }}' == 'schedule' or '${{ inputs.modo }}' == 'coletar':
+            if not all(os.environ.get(key) for key in ['DATABASE_URL', 'OPENAI_API_KEY']):
               raise SystemExit('Configure os segredos DATABASE_URL e OPENAI_API_KEY antes de executar.')
           PY
+      - name: Prévia pública sem banco ou IA
+        if: github.event_name == 'workflow_dispatch' && inputs.modo == 'verificar'
+        run: python api/check_scheduled_scrape.py
       - name: Instalar dependências
+        if: github.event_name == 'schedule' || inputs.modo == 'coletar'
         run: python -m pip install -r api/requirements.txt
       - name: Executar coleta e registrar resultados
+        if: github.event_name == 'schedule' || inputs.modo == 'coletar'
         run: python api/run_scheduled_scrape.py
+      - name: Resumo da execução
+        if: always()
+        env:
+          RESULTADO: ${{ job.status }}
+          MODO: ${{ github.event_name == 'schedule' && 'coletar' || inputs.modo }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = Path(os.environ['COLETA_RELATORIO_PATH'])
+          rows = json.loads(report.read_text(encoding='utf-8'))['execucoes'] if report.exists() else []
+          success = sum(r['status'] == 'success' for r in rows)
+          failed = sum(r['status'] == 'error' for r in rows)
+          count = sum(r.get('produtos', 0) for r in rows)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+            f.write(f"## Coleta Bikonfig\nModo: {os.environ['MODO']}\n\nResultado do job: {os.environ['RESULTADO']}\n\n")
+            if rows:
+              f.write(f"Fontes concluídas: {success}; fontes com falha: {failed}; produtos/variantes processados: {count}.\n")
+            else:
+              f.write('Sem coleta de produtos registrada neste job. Em modo verificar, nenhuma gravação é realizada.\n')
+          PY

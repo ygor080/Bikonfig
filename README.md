@@ -458,6 +458,20 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Operação e acompanhamento da coleta (etapa 25)
+
+O workflow de coleta agora oferece uma prévia manual sem IA/banco antes da
+execução completa e resume fontes processadas e falhas no GitHub Actions.
+Administradores podem acompanhar `/admin/coletas`, com últimas execuções,
+indicação de tarefas sem conclusão e datas de atualização dos preços.
+
+Consulte [docs/coleta-automatica.md](docs/coleta-automatica.md) para configurar
+alvos e segredos, validar manualmente e ativar o agendamento. Na verificação
+real desta etapa, a prévia encontrou falha de certificado TLS na loja; o
+ambiente local também não fornece a chave de IA/alvos. Não foi ativada a
+recorrência nem realizada coleta completa. O banco só foi consultado.
+Não exige migração adicional à etapa 15.
+
 ### Proteção das ações contra CSRF (etapa 24)
 
 Todas as requisições que alteram estado exigem um token aleatório de 32

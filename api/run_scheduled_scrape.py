@@ -83,7 +83,7 @@ def collect_source(target, timeout):
     return count
 
 
-def run_targets(targets, collect, ledger, timeout=900, budget=2700, clock=time.monotonic):
+def run_targets(targets, collect, ledger, timeout=900, budget=2700, clock=time.monotonic, report=None):
     deadline = clock() + budget
     failed = False
     for target in targets:
@@ -91,6 +91,8 @@ def run_targets(targets, collect, ledger, timeout=900, budget=2700, clock=time.m
         remaining = int(deadline - clock())
         if remaining <= 0:
             ledger.finish(run_id, 'error', error_code='budget_exhausted')
+            if report is not None:
+                report.append({'fonte': urlparse(target).hostname, 'status': 'error', 'codigo': 'budget_exhausted'})
             failed = True
             continue
         try:
@@ -98,17 +100,29 @@ def run_targets(targets, collect, ledger, timeout=900, budget=2700, clock=time.m
             if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
                 raise ValueError('invalid_result')
             ledger.finish(run_id, 'success', products=count)
+            if report is not None:
+                report.append({'fonte': urlparse(target).hostname, 'status': 'success', 'produtos': count})
             print(f'Coleta concluída: {target} ({count} produtos/variantes)')
         except subprocess.TimeoutExpired:
             ledger.finish(run_id, 'error', error_code='timeout')
+            if report is not None:
+                report.append({'fonte': urlparse(target).hostname, 'status': 'error', 'codigo': 'timeout'})
             failed = True
         except Exception as error:
             known_errors = {'scraper_failed', 'missing_result', 'invalid_result', 'empty_collection'}
             code = str(error) if str(error) in known_errors else type(error).__name__
             ledger.finish(run_id, 'error', error_code=code)
+            if report is not None:
+                report.append({'fonte': urlparse(target).hostname, 'status': 'error', 'codigo': code})
             failed = True
         # Itens gravados antes de uma falha continuam no banco; falha não informa zero itens.
     return 1 if failed else 0
+
+
+def write_report(report):
+    destination = os.environ.get('COLETA_RELATORIO_PATH')
+    if destination:
+        Path(destination).write_text(json.dumps({'execucoes': report}, ensure_ascii=False), encoding='utf-8')
 
 
 def main():
@@ -131,12 +145,13 @@ def main():
     acquired = False
     owner = str(uuid.uuid4())
     ledger = RunLedger(conn)
+    report = []
     try:
         acquired = ledger.acquire(owner)
         if not acquired:
             print('Já existe uma coleta agendada em execução; nenhuma nova coleta iniciada.')
             return 0
-        return run_targets(targets, collect_source, ledger)
+        return run_targets(targets, collect_source, ledger, report=report)
     except Exception:
         print('Falha ao registrar ou executar a coleta. Confira a migração da etapa 15 e a conexão com o banco.', file=sys.stderr)
         return 1
@@ -146,6 +161,7 @@ def main():
                 ledger.release(owner)
         finally:
             conn.close()
+            write_report(report)
 
 
 if __name__ == '__main__':
