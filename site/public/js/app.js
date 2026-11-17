@@ -57,7 +57,9 @@
         }, duracao);
     }
 
+    let sequenciaModal = 0;
     function abrirModalBase(conteudoEl) {
+        const focoAnterior = document.activeElement;
         const backdrop = document.createElement('div');
         backdrop.className = 'bk-modal-backdrop';
 
@@ -65,13 +67,34 @@
         modal.className = 'bk-modal';
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
+        const titulo = conteudoEl.querySelector('.bk-modal__titulo');
+        titulo.id = 'bk-modal-titulo-' + (++sequenciaModal);
+        modal.setAttribute('aria-labelledby', titulo.id);
         modal.appendChild(conteudoEl);
 
         backdrop.appendChild(modal);
         document.body.appendChild(backdrop);
+        const fundo = Array.from(document.body.children).filter(el => el !== backdrop);
+        const estados = fundo.map(el => el.inert);
+        fundo.forEach(el => { el.inert = true; });
+        const overflowAnterior = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        function prenderFoco(ev) {
+            if (ev.key !== 'Tab') return;
+            const controles = Array.from(modal.querySelectorAll('button:not(:disabled), input:not(:disabled), [href]'));
+            const primeiro = controles[0], ultimo = controles.at(-1);
+            if (ev.shiftKey && document.activeElement === primeiro) { ev.preventDefault(); ultimo.focus(); }
+            else if (!ev.shiftKey && document.activeElement === ultimo) { ev.preventDefault(); primeiro.focus(); }
+        }
+        modal.addEventListener('keydown', prenderFoco);
         requestAnimationFrame(function () { backdrop.classList.add('bk-modal-backdrop--visivel'); });
 
         function fechar() {
+            modal.removeEventListener('keydown', prenderFoco);
+            fundo.forEach((el, i) => { el.inert = estados[i]; });
+            document.body.style.overflow = overflowAnterior;
+            focoAnterior?.focus();
+            backdrop.inert = true;
             backdrop.classList.remove('bk-modal-backdrop--visivel');
             setTimeout(function () { backdrop.remove(); }, 150);
         }
@@ -115,7 +138,7 @@
                 if (ev.target === instancia.backdrop) concluir(false);
             });
             document.addEventListener('keydown', aoTeclar);
-            btnConfirmar.focus();
+            (opcoes.perigo ? btnCancelar : btnConfirmar).focus();
         });
     }
 
@@ -138,6 +161,7 @@
             const input = conteudo.querySelector('.bk-modal__input');
             input.placeholder = opcoes.placeholder || '';
             input.value = opcoes.valorInicial || '';
+            if (Number.isInteger(opcoes.maxLength) && opcoes.maxLength > 0) input.maxLength = opcoes.maxLength;
             const btnCancelar = conteudo.querySelector('[data-acao="cancelar"]');
             const btnConfirmar = conteudo.querySelector('[data-acao="confirmar"]');
             btnCancelar.textContent = opcoes.textoCancelar || 'Cancelar';
@@ -152,7 +176,7 @@
             }
             function aoTeclar(ev) {
                 if (ev.key === 'Escape') concluir(null);
-                if (ev.key === 'Enter') { ev.preventDefault(); enviar(); }
+                if (ev.key === 'Enter' && ev.target === input) { ev.preventDefault(); enviar(); }
             }
             function enviar() {
                 const valor = input.value.trim();
@@ -165,7 +189,7 @@
                 if (ev.target === instancia.backdrop) concluir(null);
             });
             document.addEventListener('keydown', aoTeclar);
-            setTimeout(function () { input.focus(); }, 50);
+            input.focus();
         });
     }
 
@@ -193,6 +217,14 @@ document.addEventListener('DOMContentLoaded', function () {
             toggle.classList.remove('aberto');
             toggle.setAttribute('aria-expanded', 'false');
         });
+    });
+    document.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Escape' && nav.classList.contains('aberta')) {
+            nav.classList.remove('aberta');
+            toggle.classList.remove('aberto');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.focus();
+        }
     });
 });
 

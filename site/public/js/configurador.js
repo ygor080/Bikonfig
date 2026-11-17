@@ -158,10 +158,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const posicaoAtivaPorSub = Object.create(null);
 
+    function abrirGrupo(grupo, aberto) {
+        grupo.classList.toggle('aberto', aberto);
+        grupo.querySelector?.('.config-grupo-btn')?.setAttribute('aria-expanded', String(aberto));
+        const lista = grupo.querySelector?.('.config-subitens');
+        if (lista) lista.hidden = !aberto;
+    }
+
     configMenu.querySelectorAll('.config-grupo-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             const grupo = btn.closest('.config-grupo');
-            grupo.classList.toggle('aberto');
+            abrirGrupo(grupo, !grupo.classList.contains('aberto'));
         });
     });
 
@@ -608,6 +615,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const nome = await Bikonfig.promptDialog({
                 titulo: configuracaoEmEdicao ? 'Salvar alterações' : 'Salvar configuração',
                 valorInicial: nomeConfiguracao,
+                maxLength: 100,
                 rotulo: 'Nome da configuração',
                 placeholder: 'Ex.: Minha MTB de trilha',
                 textoConfirmar: 'Salvar'
@@ -746,7 +754,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             configMenu.querySelectorAll('.config-subitem-btn').forEach(btn => btn.classList.remove('ativo'));
             botaoCategoria.classList.add('ativo');
-            botaoCategoria.closest('.config-grupo').classList.add('aberto');
+            abrirGrupo(botaoCategoria.closest('.config-grupo'), true);
             renderizarListaPecas(pecas, subcategoria, botaoCategoria.dataset.nome);
             if (posicao) {
                 Bikonfig.toast('Peça selecionada na posição dianteira. Você pode escolher a peça traseira na mesma categoria.', { tipo: 'sucesso' });
@@ -780,5 +788,5 @@ document.addEventListener('DOMContentLoaded', function () {
     iniciarSelecao();
 
     const primeiroGrupo = configMenu.querySelector('.config-grupo');
-    if (primeiroGrupo) primeiroGrupo.classList.add('aberto');
+    if (primeiroGrupo) abrirGrupo(primeiroGrupo, true);
 });

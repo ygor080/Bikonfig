@@ -457,6 +457,32 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Usabilidade e uso no celular (etapa 22)
+
+O configurador oferece atalhos fixos para categorias, peças e resumo em
+telas de até 1024 px. O resumo usa a rolagem da página em telas menores,
+sem uma segunda caixa de rolagem que esconda as ações. O botão Salvar ganha
+destaque visual, enquanto Limpar seleção fica como ação secundária.
+
+Categorias informam seu estado por `aria-expanded` e `aria-controls`;
+listas fechadas ficam ocultas também na navegação por teclado. Os atalhos
+apontam para seções identificadas, com margem para o cabeçalho fixo.
+Botões no celular têm maior altura, campos usam texto de 16 px e nomes
+longos podem quebrar linha. A interface respeita a preferência por movimento
+reduzido e destaca o foco em selects, textareas e seções de destino.
+
+Diálogos têm título associado, mantêm o foco dentro da janela, bloqueiam o
+conteúdo ao fundo e devolvem o foco ao fechar. Confirmações destrutivas
+começam no botão Cancelar. Escape fecha o menu e devolve o foco ao botão
+de abertura. O nome da montagem tem limite de 100 caracteres no diálogo,
+e Enter no botão Cancelar não aciona o salvamento.
+
+Validação: `npm --prefix site test`, incluindo testes de foco, Tab/Shift+Tab,
+Escape, cancelamento e expansão das categorias. Prévia local inspecionada
+no Chrome em 320, 390 e 1280 px, sem rolagem horizontal. Essa inspeção usa
+dados fictícios e não substitui testes em dispositivos físicos ou com
+leitores de tela. Sem migração, dependência nova ou variável de ambiente.
+
 ### Testes integrados e integração contínua (etapa 21)
 
 `npm --prefix site test` executa toda a suíte do site. Para executar apenas

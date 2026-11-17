@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/css/estilo.css">
     <link rel="stylesheet" href="/css/configurador.css">
 </head>
-<body>
+<body class="pagina-configurador">
     <header class="cabecalho">
         <div class="container">
             <a href="/" class="logo">Bikonfig</a>
@@ -29,16 +29,21 @@
         </div>
     </header>
 
+    <nav class="config-atalhos" aria-label="Atalhos do configurador">
+        <a href="#configMenu">Categorias</a>
+        <a href="#configListaPecas">Peças</a>
+        <a href="#configResumo">Resumo e salvar</a>
+    </nav>
     <main class="config-wrapper">
-        <aside class="config-menu" id="configMenu" data-usuario-id="<%= usuario.id %>">
-            <h2 class="config-menu-titulo">Peças</h2>
+        <aside class="config-menu" id="configMenu" tabindex="-1" aria-labelledby="configTituloCategorias" data-usuario-id="<%= usuario.id %>">
+            <h2 class="config-menu-titulo" id="configTituloCategorias">Categorias de peças</h2>
             <% categorias.forEach(function(grupo) { %>
                 <div class="config-grupo" data-grupo="<%= grupo.slug %>">
-                    <button type="button" class="config-grupo-btn">
+                    <button type="button" class="config-grupo-btn" aria-expanded="false" aria-controls="subitens-<%= grupo.slug %>">
                         <span><%= grupo.nome %></span>
                         <span class="config-grupo-seta">▾</span>
                     </button>
-                    <ul class="config-subitens">
+                    <ul class="config-subitens" id="subitens-<%= grupo.slug %>" hidden>
                         <% grupo.subcategorias.forEach(function(sub) { %>
                             <li>
                                 <button type="button"
@@ -73,12 +78,12 @@
                 <p class="config-visual-aviso">Visualização ilustrativa — fotos reais das peças entram em uma próxima etapa.</p>
             </div>
 
-            <div class="config-lista-pecas" id="configListaPecas">
+            <div class="config-lista-pecas" id="configListaPecas" tabindex="-1" aria-label="Peças da categoria">
                 <p class="config-lista-vazio">Selecione uma categoria ao lado para ver as peças disponíveis.</p>
             </div>
         </section>
 
-        <aside class="config-orcamento">
+        <aside class="config-orcamento" id="configResumo" tabindex="-1" aria-label="Resumo e salvamento">
             <h2 class="config-menu-titulo">Resumo da configuração</h2>
             <label for="tipoMontagem">Tipo de montagem</label>
             <select id="tipoMontagem" class="config-tipo-montagem">
@@ -100,10 +105,10 @@
                 <strong id="orcamentoTotal" role="status" aria-live="polite">R$ 0,00</strong>
             </div>
             <button type="button" class="btn-secundario" id="btnAtualizarOrcamento">Atualizar orçamento</button>
-            <button type="button" class="btn-principal" id="btnLimparConfig">Limpar seleção</button>
+            <button type="button" class="btn-secundario" id="btnLimparConfig">Limpar seleção</button>
             <p id="configEdicao" role="status" aria-live="polite"></p>
             <p id="configRascunho" role="status" aria-live="polite">O progresso é recuperado neste navegador. Use Salvar para guardar a montagem na sua conta.</p>
-            <button type="button" class="btn-secundario" id="btnSalvarConfig">
+            <button type="button" class="btn-principal" id="btnSalvarConfig">
                 Salvar configuração
             </button>
             <button type="button" class="btn-secundario" id="btnBaixarPdf">
