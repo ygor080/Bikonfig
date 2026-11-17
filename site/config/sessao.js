@@ -1,4 +1,5 @@
 const NOME_COOKIE = 'bikonfig.sid';
+const NOME_COOKIE_FIREBASE = 'bikonfig.firebase';
 
 function opcoesSessao(env, store) {
     const secret = env.SECRET;
@@ -11,14 +12,15 @@ function opcoesSessao(env, store) {
     };
 }
 
-function autenticarSessao(req, usuario) {
+function autenticarSessao(req, usuario, firebaseAuth = null) {
     return new Promise((resolve, reject) => {
         req.session.regenerate(erro => {
             if (erro) return reject(erro);
             req.session.user = { id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin === true };
+            if (firebaseAuth) req.session.firebaseAuth = firebaseAuth;
             req.session.save(erroSalvar => erroSalvar ? reject(erroSalvar) : resolve());
         });
     });
 }
 
-module.exports = { NOME_COOKIE, opcoesSessao, autenticarSessao };
+module.exports = { NOME_COOKIE, NOME_COOKIE_FIREBASE, opcoesSessao, autenticarSessao };

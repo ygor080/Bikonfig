@@ -1,5 +1,5 @@
 const UsuarioModel = require('../models/usuarioModel');
-const { autenticarSessao, NOME_COOKIE } = require('../config/sessao');
+const { autenticarSessao, NOME_COOKIE, NOME_COOKIE_FIREBASE } = require('../config/sessao');
 
 const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -96,6 +96,7 @@ const authController = {
         req.session.destroy(erro => {
             if (erro) return next(erro);
             res.clearCookie(NOME_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax', secure: req.app.get('env') === 'production' });
+            res.clearCookie(NOME_COOKIE_FIREBASE, { path: '/', httpOnly: true, sameSite: 'lax', secure: req.app.get('env') === 'production' });
             res.redirect('/login');
         });
     }

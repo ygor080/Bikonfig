@@ -463,6 +463,23 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 
 ## ⚠️ Segurança
 
+### Validação Firebase no backend e sessões seguras (etapa 32)
+
+O endpoint `POST /auth/firebase/session` valida ID token e login recente,
+exige CSRF e uma identidade já vinculada ao usuário do banco. A sessão
+renova seu ID e usa cookies protegidos; os tokens Firebase não ficam no
+store PostgreSQL nem no JSON. Revogação e permissões são verificadas nas
+requisições autenticadas. Logout limpa os dois cookies e encerra a sessão.
+
+`FIREBASE_ENABLED=false` mantém o fluxo legado sem chamadas ao SDK. Habilitar
+exige projeto/credencial configurados e a migração 031 aplicada. As telas e
+o vínculo dos novos usuários continuam nas próximas etapas. Não há migração
+nova nesta entrega. Consulte [docs/firebase.md](docs/firebase.md).
+
+160 testes Node aprovados; validação Firebase com SDK simulado e testes
+HTTP/sessão reais. O projeto Firebase real ainda precisa ser configurado
+para testar a integração externa; não houve ativação no banco publicado.
+
 ### Preparação do Firebase e vínculo de usuários (etapa 31)
 
 A base do Firebase inclui SDK Admin, configuração pública separada das

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const session = require('express-session');
-const { opcoesSessao, autenticarSessao, NOME_COOKIE } = require('../config/sessao');
+const { opcoesSessao, autenticarSessao, NOME_COOKIE, NOME_COOKIE_FIREBASE } = require('../config/sessao');
 const { criarLimiteAutenticacao } = require('../middleware/limiteAutenticacao');
 const secret = '0123456789abcdef0123456789abcdef0123456789abcdef';
 
@@ -11,7 +11,7 @@ test('controlador aguarda salvar a sessão no login e no cadastro e trata falha 
     const fs = require('node:fs');
     const identidade = { id: 1, nome: 'Teste', email: 'teste@exemplo.com', isAdmin: false };
     const contexto = { module: { exports: {} }, Buffer, require: nome => {
-        if (nome === '../config/sessao') return { autenticarSessao, NOME_COOKIE };
+        if (nome === '../config/sessao') return { autenticarSessao, NOME_COOKIE, NOME_COOKIE_FIREBASE };
         return { validarLogin: async () => identidade, cadastrar: async () => ({ usuario: identidade }) };
     } };
     vm.runInNewContext(fs.readFileSync(require.resolve('../controllers/authController'), 'utf8'), contexto);
@@ -32,7 +32,7 @@ test('controlador aguarda salvar a sessão no login e no cadastro e trata falha 
     let removido = false;
     let destino;
     controller.logout({ session: { destroy: cb => cb() }, app: { get: () => 'production' } }, {
-        clearCookie: (nome, opcoes) => { assert.equal(nome, NOME_COOKIE); assert.equal(opcoes.secure, true); removido = true; },
+        clearCookie: (nome, opcoes) => { assert.ok([NOME_COOKIE, 'bikonfig.firebase'].includes(nome)); assert.equal(opcoes.secure, true); removido = true; },
         redirect: url => { destino = url; }
     });
     assert.equal(removido, true);

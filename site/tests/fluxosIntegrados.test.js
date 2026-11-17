@@ -64,9 +64,9 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL temporÃ
     }
     let base = await iniciar();
     function cliente() {
-        let cookie = '';
+        const cookies = new Map();
         return {
-            get cookie() { return cookie; },
+            get cookie() { return [...cookies].map(([nome, valor]) => nome + '=' + valor).join('; '); },
             async pedir(url, body, method) {
                 let token;
                 if (body) {
@@ -76,10 +76,13 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL temporÃ
                     assert.ok(token, 'PÃ¡gina deve fornecer token CSRF');
                 }
                 const resposta = await fetch(base + url, { redirect: 'manual', method: method || (body ? 'POST' : 'GET'),
-                    headers: { ...(cookie ? { cookie } : {}), ...(body ? { 'content-type': 'application/json', 'x-csrf-token': token } : {}) },
+                    headers: { ...(this.cookie ? { cookie: this.cookie } : {}), ...(body ? { 'content-type': 'application/json', 'x-csrf-token': token } : {}) },
                     body: body ? JSON.stringify(body) : undefined });
-                const novo = resposta.headers.get('set-cookie');
-                if (novo) cookie = novo.split(';')[0];
+                for (const novo of resposta.headers.getSetCookie()) {
+                    const par = novo.split(';')[0]; const i = par.indexOf('=');
+                    const nome = par.slice(0, i), valor = par.slice(i + 1);
+                    if (valor) cookies.set(nome, valor); else cookies.delete(nome);
+                }
                 return resposta;
             }
         };
@@ -335,5 +338,12 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL temporÃ
         assert.equal((await db.query("SELECT relrowsecurity FROM pg_class WHERE relname='usuarios_identidades'")).rows[0].relrowsecurity, true);
         const diagnostico = await verificarVinculos(pool);
         assert.deepEqual(diagnostico.pendencias, []); assert.ok(Number(diagnostico.resumo.com_bcrypt) >= 2);
+    });
+    await t.test('endpoint Firebase respeita CSRF e fica inativo sem configurar o projeto', async () => {
+        const semCsrf = await fetch(base + '/auth/firebase/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"idToken":"nao-validar"}' });
+        assert.equal(semCsrf.status, 403);
+        const desabilitado = await dono.pedir('/auth/firebase/session', { idToken: 'nao-validar' });
+        assert.equal(desabilitado.status, 503);
+        assert.equal((await desabilitado.json()).codigo, 'FIREBASE_DESABILITADO');
     });
 });

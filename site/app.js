@@ -4,7 +4,7 @@ const path = require('path');
 const { opcoesSessao } = require('./config/sessao');
 const { parsersRequisicao, erroRequisicao } = require('./middleware/validacaoRequisicao');
 
-function criarApp({ env = process.env, pool = require('./config/banco').pool, store } = {}) {
+function criarApp({ env = process.env, pool = require('./config/banco').pool, store, firebaseAuth } = {}) {
     const app = express();
     app.set('env', env.NODE_ENV || 'development');
     app.disable('x-powered-by');
@@ -22,7 +22,10 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     const PgSession = require('connect-pg-simple')(session);
     opcoes.store = store || new PgSession({ pool, tableName: 'sessoes_site', createTableIfMissing: true });
     app.use(session(opcoes));
+    const firebase = require('./middleware/autenticacaoFirebase').criarAutenticacaoFirebase({ env, auth: firebaseAuth });
+    app.use(firebase.validarSessao);
     app.use(require('./middleware/csrf'));
+    app.post('/auth/firebase/session', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.entrar);
     app.use('/', require('./routes/authRoutes'));
     app.use('/catalogo', require('./routes/catalogoRoutes'));
     app.use('/admin', require('./routes/adminRoutes'));
