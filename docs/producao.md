@@ -51,9 +51,14 @@ Referência: [health checks do Render](https://render.com/docs/health-checks).
 Execute somente as migrações pendentes em `database/migrations`, em ordem:
 008, 009, 010, 012, 013, 014 e 015. Se a base já estava atualizada até a
 etapa 14, a única migração posterior é `015_agendamento_precos.sql`.
-As etapas 16–28 não exigem uma migração manual nova. O store de sessões
+As etapas 16–30 não exigem uma migração manual nova. O store de sessões
 cria `sessoes_site` no primeiro uso se ela não existir e houver permissão.
 Não é necessário reaplicar todo o `schema.sql` em uma base existente.
+
+A preparação Firebase da etapa 31 acrescenta a migração opcional
+`031_vinculos_firebase.sql`, necessária antes de usar o vínculo das contas.
+Ela não foi aplicada automaticamente. O login atual funciona sem essa tabela
+enquanto a integração permanece inativa. Consulte [Firebase](firebase.md).
 
 ## Evidências de 17/11/2026
 

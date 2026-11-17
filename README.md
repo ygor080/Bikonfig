@@ -3,6 +3,7 @@
 Guias: [uso](docs/guia-de-uso.md), [produção](docs/producao.md),
 [coleta](docs/coleta-automatica.md), [qualidade](docs/qualidade-catalogo.md),
 [desempenho](docs/desempenho.md) e [validação final](docs/validacao-final.md).
+Preparação da próxima autenticação: [Firebase](docs/firebase.md).
 
 - **`api/`**: scraper Python + API FastAPI. Coleta produtos de lojas
   parceiras, categoriza com IA e grava no Postgres com histórico de preço.
@@ -461,6 +462,24 @@ enviar só precisa da classe `js-form-confirmar` mais os atributos
 `views/minhas-configuracoes.ejs` ou `views/admin-revisao.ejs`).
 
 ## ⚠️ Segurança
+
+### Preparação do Firebase e vínculo de usuários (etapa 31)
+
+A base do Firebase inclui SDK Admin, configuração pública separada das
+credenciais do servidor, inicialização sob demanda e o diagnóstico
+`npm --prefix site run check:firebase`. O padrão é desabilitado e o login
+atual permanece funcionando. Não há associação automática por e-mail.
+
+Antes de usar o vínculo de contas, aplique
+`database/migrations/031_vinculos_firebase.sql`. A tabela preserva os IDs
+atuais e suas montagens, separa projetos e impede reassociar uma identidade.
+O `schema.sql` foi atualizado para bancos novos. A migração não foi aplicada
+no banco real nesta entrega.
+
+Consulte [docs/firebase.md](docs/firebase.md) para criar o projeto, configurar
+domínios, guardar a credencial no Render e planejar a transição das contas.
+153 testes Node aprovados. A conexão com um projeto Firebase real permanece
+pendente de criação/configuração pelo proprietário.
 
 ### Indicador compacto de componentes essenciais (etapa 30)
 

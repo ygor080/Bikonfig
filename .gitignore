@@ -32,3 +32,9 @@ Thumbs.db
 dist/
 build/
 .cache/
+
+# Credenciais e exportações de identidade: nunca publicar no repositório.
+firebase-admin*.json
+*-firebase-adminsdk-*.json
+service-account*.json
+firebase-users*.json

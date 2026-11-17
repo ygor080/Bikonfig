@@ -315,4 +315,25 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
             assert.equal((await dono.pedir('/catalogo?pagina=' + pagina)).status, 400);
         }
     });
+    await t.test('preparação Firebase preserva IDs, montagens, login e impede reassociar identidades', async () => {
+        const migracao = fs.readFileSync(path.join(__dirname, '../../database/migrations/031_vinculos_firebase.sql'), 'utf8');
+        await db.exec(migracao); await db.exec(migracao);
+        const Identidade = require('../models/identidadeFirebaseModel');
+        const { verificarVinculos } = require('../config/verificacaoFirebase');
+        const donoId = (await db.query("SELECT id FROM usuarios WHERE nome = 'dono'")).rows[0].id;
+        const outroId = (await db.query("SELECT id FROM usuarios WHERE nome = 'outro'")).rows[0].id;
+        const antes = (await db.query('SELECT COUNT(*) AS total FROM configuracoes WHERE usuario_id = $1', [donoId])).rows[0].total;
+        assert.equal(await Identidade.vincular(donoId, 'bikonfig-test', donoId), true);
+        assert.equal(await Identidade.vincular(donoId, 'bikonfig-test', donoId), true);
+        assert.equal(await Identidade.vincular(outroId, 'bikonfig-test', donoId), false);
+        assert.equal(await Identidade.vincular(donoId, 'bikonfig-test', 'outra-identidade'), false);
+        const usuario = await Identidade.buscar('bikonfig-test', donoId);
+        assert.equal(usuario.id, donoId); assert.equal(usuario.isAdmin, false); assert.ok(!Object.hasOwn(usuario, 'senha'));
+        assert.equal(await Identidade.buscar('bikonfig-prod', donoId), null);
+        assert.equal((await require('../models/usuarioModel').validarLogin('dono', senha)).id, donoId);
+        assert.equal((await db.query('SELECT COUNT(*) AS total FROM configuracoes WHERE usuario_id = $1', [donoId])).rows[0].total, antes);
+        assert.equal((await db.query("SELECT relrowsecurity FROM pg_class WHERE relname='usuarios_identidades'")).rows[0].relrowsecurity, true);
+        const diagnostico = await verificarVinculos(pool);
+        assert.deepEqual(diagnostico.pendencias, []); assert.ok(Number(diagnostico.resumo.com_bcrypt) >= 2);
+    });
 });

@@ -11,7 +11,8 @@
     "test:integration": "node --test tests/fluxosIntegrados.test.js",
     "check:production": "node scripts/verificarProducao.js",
     "benchmark:catalog": "node scripts/medirCatalogo.js",
-    "check:published": "node scripts/verificarPublicacao.js"
+    "check:published": "node scripts/verificarPublicacao.js",
+    "check:firebase": "node scripts/verificarFirebase.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.4",
     "express-session": "^1.19.0",
+    "firebase-admin": "^14.5.1",
     "pdfkit": "^0.15.0",
     "pg": "^8.16.3"
   },
