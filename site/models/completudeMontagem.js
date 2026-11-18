@@ -20,7 +20,7 @@ function avaliarCompletude(pecas, tipo = 'com-marchas') {
             return atende && (!lado || posicao(p) === lado || p.specs?.vendido_em_par === true);
         });
     }
-    function exigir(chave, nome, atendido) {
+    function exigir(chave, nome, atendido, categorias) {
         const alternativas = {
             'apoio-maos': ['guidao-manoplas', 'guidao-fita'], pedal: ['pedal', 'outros-pedal'],
             'cambio-traseiro': ['cambio-traseiro-desviador'], 'trocador-traseiro': ['cambio-traseiro-trocador'],
@@ -36,7 +36,7 @@ function avaliarCompletude(pecas, tipo = 'com-marchas') {
             alternativas['camara-' + lado] = ['rodas-camara-ar'];
             alternativas['disco-' + lado] = ['freios-disco'];
         }
-        requisitos.push({ chave, nome, atendido: !!atendido, categorias: alternativas[chave] || [chave] });
+        requisitos.push({ chave, nome, atendido: !!atendido, categorias: categorias || alternativas[chave] || [chave] });
     }
     for (const [categoria, nome] of [
         ['quadro', 'Quadro'], ['quadro-garfo', 'Garfo ou suspensão dianteira'], ['direcao', 'Caixa de direção'],
@@ -50,7 +50,11 @@ function avaliarCompletude(pecas, tipo = 'com-marchas') {
         const sufixo = lado === 'dianteira' ? 'dianteiro' : 'traseiro';
         const rodaCompleta = tem(['rodas', 'rodas-' + lado], lado);
         const avulsas = [tem(['rodas-aro'], lado), tem(['rodas-raio'], lado), tem(['rodas-cubo', 'rodas-cubo-' + sufixo], lado)];
-        exigir('roda-' + lado, 'Roda ' + lado + ' completa ou aro, cubo e raios', rodaCompleta || avulsas.every(Boolean));
+        const categoriasRoda = ['rodas', 'rodas-' + lado];
+        if (!avulsas[0]) categoriasRoda.push('rodas-aro');
+        if (!avulsas[1]) categoriasRoda.push('rodas-raio');
+        if (!avulsas[2]) categoriasRoda.push('rodas-cubo', 'rodas-cubo-' + sufixo);
+        exigir('roda-' + lado, 'Roda ' + lado + ' completa ou aro, cubo e raios', rodaCompleta || avulsas.every(Boolean), categoriasRoda);
         exigir('pneu-' + lado, 'Pneu ' + lado, tem(['pneus'], lado));
         exigir('fixacao-' + lado, 'Fixação da roda ' + lado, tem(['fixacao-roda', 'fixacao-roda-' + sufixo], lado));
         exigir('freio-' + lado, 'Conjunto de freio ' + sufixo,

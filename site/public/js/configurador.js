@@ -175,6 +175,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const posicaoAtivaPorSub = Object.create(null);
+    let versaoLista = 0;
 
     function abrirGrupo(grupo, aberto) {
         grupo.classList.toggle('aberto', aberto);
@@ -192,20 +193,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
     configMenu.querySelectorAll('.config-subitem-btn').forEach(function (btn) {
         btn.addEventListener('click', async function () {
+            const versao = ++versaoLista;
             const subcategoria = btn.dataset.subcategoria;
             const nomeSub = btn.dataset.nome;
 
-            configMenu.querySelectorAll('.config-subitem-btn').forEach(b => b.classList.remove('ativo'));
+            configMenu.querySelectorAll('.config-subitem-btn').forEach(b => { b.classList.remove('ativo'); b.setAttribute?.('aria-pressed', 'false'); });
             btn.classList.add('ativo');
+            btn.setAttribute?.('aria-pressed', 'true');
+            listaPecasEl.setAttribute?.('aria-busy', 'true');
 
             listaPecasEl.innerHTML = '<p class="config-lista-vazio">Carregando peças...</p>';
 
             try {
                 const resposta = await fetch('/catalogo/api/pecas/' + encodeURIComponent(subcategoria));
+                if (!resposta.ok) throw new Error('Falha na categoria.');
                 const pecas = await resposta.json();
+                if (versao !== versaoLista) return;
+                if (!Array.isArray(pecas)) throw new Error('Resposta inválida.');
                 renderizarListaPecas(pecas, subcategoria, nomeSub);
+                listaPecasEl.setAttribute?.('aria-label', 'Peças: ' + nomeSub);
+                if (window.matchMedia?.('(max-width: 1024px)')?.matches) {
+                    listaPecasEl.focus({ preventScroll: true });
+                    listaPecasEl.scrollIntoView?.({ block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth' });
+                }
             } catch (erro) {
+                if (versao !== versaoLista) return;
                 listaPecasEl.innerHTML = '<p class="config-lista-vazio">Erro ao carregar peças.</p>';
+            } finally {
+                if (versao === versaoLista) listaPecasEl.removeAttribute?.('aria-busy');
             }
         });
     });
@@ -245,6 +260,7 @@ document.addEventListener('DOMContentLoaded', function () {
         function atualizarSwitch() {
             cabecalho.querySelectorAll('.config-posicao-btn').forEach(function (b) {
                 b.classList.toggle('ativo', b.dataset.posicao === posicaoAtivaPorSub[subcategoria]);
+                b.setAttribute?.('aria-pressed', String(b.dataset.posicao === posicaoAtivaPorSub[subcategoria]));
             });
             cabecalho.querySelectorAll('.config-posicao-check').forEach(function (span) {
                 const chave = subcategoria + '::' + span.dataset.posicaoCheck;
@@ -592,6 +608,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (tipoMontagemEl) tipoMontagemEl.addEventListener('change', function () { guardarRascunho(); atualizarOrcamento(); });
 
     btnLimpar.addEventListener('click', function () {
+        versaoLista++;
+        listaPecasEl.removeAttribute?.('aria-busy');
         Object.keys(selecionadas).forEach(key => delete selecionadas[key]);
         Object.keys(posicaoAtivaPorSub).forEach(key => delete posicaoAtivaPorSub[key]);
         if (indisponiveisEl) indisponiveisEl.textContent = '';
@@ -603,7 +621,7 @@ document.addEventListener('DOMContentLoaded', function () {
         guardarRascunho();
         atualizarOrcamento();
         listaPecasEl.innerHTML = '<p class="config-lista-vazio">Selecione uma categoria ao lado para ver as peças disponíveis.</p>';
-        configMenu.querySelectorAll('.config-subitem-btn').forEach(b => b.classList.remove('ativo'));
+        configMenu.querySelectorAll('.config-subitem-btn').forEach(b => { b.classList.remove('ativo'); b.setAttribute?.('aria-pressed', 'false'); });
     });
 
     if (btnBaixarPdf) {

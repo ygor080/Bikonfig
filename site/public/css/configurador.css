@@ -449,3 +449,6 @@
 .config-obrigatorio { display: inline-block; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #c62828; }
 .config-obrigatorio[hidden] { display: none; }
 .config-detalhes-componentes { border: 0; background: transparent; color: var(--laranja); cursor: pointer; text-decoration: underline; font: inherit; font-size: 12px; }
+
+.config-legenda-pendencias { font-size: 12px; line-height: 1.5; color: var(--texto-suave); margin-bottom: 12px; }
+@media (max-width: 1024px) { .config-menu { max-height: none; overflow: visible; } .config-posicao-btn { min-height: 44px; } }

@@ -71,3 +71,18 @@ test('indicador distingue confirmação, itens selecionados e falha sem afirmar 
     assert.equal(r.d.getElementById('btnComponentesEssenciais').dataset.estado, 'indisponivel');
     assert.match(r.d.getElementById('configEstadoComponentes').textContent, /indisponível/);
 });
+
+test('troca rápida de categoria ignora resposta antiga e leva o foco às peças no celular', async t => {
+    const r=await abrir(t, { status:'incompleta',selecionados:0,total:1,faltantes:[],confirmar:[] });
+    r.w.matchMedia = query => ({ matches: query.includes('max-width') });
+    let resolver;
+    const antiga = new Promise(resolve => { resolver=resolve; });
+    r.w.fetch = async url => url.endsWith('/quadro') ? antiga : { ok:true,json:async()=>[{id:'g',nome:'Garfo mais recente',preco:20,subcategoria:'quadro-garfo'}] };
+    const botoes=r.d.querySelectorAll('.config-subitem-btn');
+    botoes[0].click(); botoes[1].click(); await esperar();
+    assert.match(r.d.getElementById('configListaPecas').textContent,/Garfo mais recente/);
+    assert.equal(r.d.activeElement.id,'configListaPecas');
+    resolver({ok:true,json:async()=>[{id:'q',nome:'Quadro antigo',preco:30,subcategoria:'quadro'}]}); await esperar();
+    assert.ok(!r.d.getElementById('configListaPecas').textContent.includes('Quadro antigo'));
+    assert.equal(botoes[1].getAttribute('aria-pressed'),'true');
+});

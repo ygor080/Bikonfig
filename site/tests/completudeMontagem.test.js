@@ -132,3 +132,11 @@ test('modelo persiste tipo de montagem e conserva isolamento por usuário na rea
     assert.equal(c.tipo_montagem, 'single-speed');
     assert.match(consultas.at(-1).sql, /usuario_id = \$2/);
 });
+
+
+test('pendência de roda avulsa marca apenas peças ainda faltantes, mantendo roda completa como alternativa', () => {
+    const r=avaliarCompletude([p('rodas-aro','dianteira'),p('rodas-aro','traseira')]);
+    for(const f of r.faltantes.filter(f=>f.chave.startsWith('roda-'))) { assert.ok(!f.categorias.includes('rodas-aro')); assert.ok(f.categorias.includes('rodas-raio')); }
+    const par=avaliarCompletude([p('rodas',null,{vendido_em_par:true})]);
+    assert.equal(par.faltantes.some(f=>f.chave.startsWith('roda-')),false);
+});

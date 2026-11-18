@@ -40,6 +40,7 @@
     <main class="config-wrapper">
         <aside class="config-menu" id="configMenu" tabindex="-1" aria-labelledby="configTituloCategorias" data-usuario-id="<%= usuario.id %>" data-completude-inicial="<%= JSON.stringify(typeof completudeInicial !== 'undefined' ? completudeInicial : null) %>">
             <h2 class="config-menu-titulo" id="configTituloCategorias">Categorias de peças</h2>
+            <p class="config-legenda-pendencias">Bolinha vermelha: componente essencial pendente. Algumas categorias são alternativas.</p>
             <input type="hidden" id="configCompletudesPorTipo" value="<%= JSON.stringify(typeof completudesPorTipo !== 'undefined' ? completudesPorTipo : {}) %>">
             <% categorias.forEach(function(grupo) { %>
                 <div class="config-grupo" data-grupo="<%= grupo.slug %>">
