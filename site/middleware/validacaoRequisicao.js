@@ -24,9 +24,11 @@ function validarBusca(req, res, next) {
 function validarSelecao(modo) {
     return (req, res, next) => {
         const body = req.body;
-        const permitidos = modo === 'salvar' ? ['nome', 'itens', 'tipoMontagem']
+        const permitidos = modo === 'salvar' ? ['nome', 'itens', 'tipoMontagem', 'versao', 'chaveCriacao']
             : modo === 'pdf' ? ['itens'] : ['ids', 'itens', 'tipoMontagem'];
         if (!campos(body, permitidos)) return rejeitar(res, 'Formato da seleção inválido.');
+        if (modo==='salvar' && (body.versao!==undefined && (typeof body.versao!=='string'||!/^[a-f0-9]{64}$/.test(body.versao))
+            || body.chaveCriacao!==undefined && (typeof body.chaveCriacao!=='string'||!UUID.test(body.chaveCriacao)||req.params?.id))) return rejeitar(res,'Versão ou chave de salvamento inválida.');
         if (body.tipoMontagem !== undefined && !['com-marchas', 'single-speed', 'suspensao-total'].includes(body.tipoMontagem)) {
             return rejeitar(res, 'Tipo de montagem inválido.');
         }

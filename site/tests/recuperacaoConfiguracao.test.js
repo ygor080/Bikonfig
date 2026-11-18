@@ -18,7 +18,7 @@ function controlador(itensSalvos, produtos) {
         },
         pdfkit: function () {}
     };
-    const contexto = { module: { exports: {} }, require: nome => nome === '../models/completudeMontagem'
+    const contexto = { module: { exports: {} }, require: nome => /versaoConfiguracao$/.test(nome) ? require('../models/versaoConfiguracao') : nome === '../models/completudeMontagem'
         ? require('../models/completudeMontagem') : dependencias[nome], console };
     vm.runInNewContext(codigo, contexto);
     return contexto.module.exports;

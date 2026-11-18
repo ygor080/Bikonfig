@@ -71,7 +71,7 @@ test('controller usa usuário da sessão e recusa atualização ausente, indispo
     }
 });
 
-async function abrir(t, { nova = false, ausentes = false, falhaAbrir = false, falhaSalvar = false } = {}) {
+async function abrir(t, { nova = false, ausentes = false, falhaAbrir = false, falhaSalvar = false, versao } = {}) {
     const produto = { id, nome: 'Quadro', preco: 100, subcategoria: 'quadro' };
     const html = ejs.render(fs.readFileSync(require.resolve('../views/configurador.ejs'), 'utf8'), {
         usuario: { nome: 'Teste' }, categorias: [{ slug: 'quadro', nome: 'Quadro', subcategorias: [{ slug: 'quadro', nome: 'Quadro' }] }]
@@ -79,6 +79,7 @@ async function abrir(t, { nova = false, ausentes = false, falhaAbrir = false, fa
     const dom = new JSDOM(html, { url: 'https://bikonfig.test/catalogo/configurador' + (nova ? '?produto=' + id + '&subcategoria=quadro' : '?config=' + id), runScripts: 'dangerously' });
     t.after(() => dom.window.close());
     const w = dom.window; const envios = [], avisos = [], prompts = [], confirmacoes = [];
+    Object.defineProperty(w.crypto, 'randomUUID', { value: () => '41414141-4141-4141-8141-414141414141' });
     let confirmar = false;
     w.console.error = () => {};
     w.Bikonfig = { toast: mensagem => avisos.push(mensagem), promptDialog: async opcoes => { prompts.push(opcoes); return 'Editada'; },
@@ -88,7 +89,7 @@ async function abrir(t, { nova = false, ausentes = false, falhaAbrir = false, fa
             envios.push({ url, body: JSON.parse(opcoes.body) });
             return { ok: !falhaSalvar, json: async () => falhaSalvar ? { erro: 'Configuração não encontrada.' } : { id, nome: 'Editada' } };
         }
-        if (url.includes('/api/configuracoes/')) return { ok: !falhaAbrir, json: async () => ({ id, nome: 'Original', tipoMontagem: 'single-speed', itens: [produto], indisponiveis: ausentes ? [{ nome: 'Antiga' }] : [] }) };
+        if (url.includes('/api/configuracoes/')) return { ok: !falhaAbrir, json: async () => ({ id, nome: 'Original', versao, tipoMontagem: 'single-speed', itens: [produto], indisponiveis: ausentes ? [{ nome: 'Antiga' }] : [] }) };
         if (url.includes('/api/pecas/')) return { ok: true, json: async () => [produto] };
         return { ok: true, json: async () => ({ total: 100, avisos: [] }) };
     };
@@ -132,4 +133,12 @@ test('DOM bloqueia salvar quando a montagem solicitada não pode ser aberta', as
     const r = await abrir(t, { falhaAbrir: true }); await r.salvar();
     assert.equal(r.envios.length, 0);
     assert.equal(r.w.document.getElementById('btnSalvarConfig').disabled, true);
+});
+
+
+test('DOM envia versão ao editar e reutiliza chave ao repetir criação com falha', async t => {
+    const editada=await abrir(t,{versao:'a'.repeat(64)}); await editada.salvar(); assert.equal(editada.envios[0].body.versao,'a'.repeat(64));
+    const nova=await abrir(t,{nova:true,falhaSalvar:true}); await nova.salvar(); await nova.salvar();
+    assert.equal(nova.envios[0].body.chaveCriacao,nova.envios[1].body.chaveCriacao);
+    assert.match(nova.envios[0].body.chaveCriacao,/^[a-f0-9-]{36}$/);
 });

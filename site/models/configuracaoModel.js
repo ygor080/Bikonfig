@@ -1,11 +1,19 @@
 const { pool } = require('../config/banco');
 const PRODUTO_DISPONIVEL_SQL = require('../config/produtoDisponivel');
+const versaoConfiguracao = require('./versaoConfiguracao');
+const conflito = () => Object.assign(new Error('Montagem alterada em outra aba.'), { code:'CONFIGURACAO_CONFLITO' });
 
 class ConfiguracaoModel {
-    static async atualizar(id, usuarioId, nome, itens, tipoMontagem = 'com-marchas') {
+    static async atualizar(id, usuarioId, nome, itens, tipoMontagem = 'com-marchas', versao) {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            if (versao) {
+                const {rows:atuais}=await client.query('SELECT id,nome,tipo_montagem FROM configuracoes WHERE id=$1 AND usuario_id=$2 FOR UPDATE',[id,usuarioId]);
+                if (!atuais.length) { await client.query('ROLLBACK'); return null; }
+                const {rows:aplicacoes}=await client.query('SELECT produto_id AS id,posicao FROM configuracao_itens WHERE configuracao_id=$1 ORDER BY id',[id]);
+                if (versaoConfiguracao(atuais[0],aplicacoes)!==versao) throw conflito();
+            }
             // O UPDATE autoriza e bloqueia a montagem antes de substituir seus itens.
             const { rows } = await client.query(
                 'UPDATE configuracoes SET nome = $3, tipo_montagem = $4 WHERE id = $1 AND usuario_id = $2 RETURNING id, nome',
@@ -25,10 +33,22 @@ class ConfiguracaoModel {
         } finally { client.release(); }
     }
 
-    static async salvar(usuarioId, nome, itens, tipoMontagem = 'com-marchas') {
+    static async salvar(usuarioId, nome, itens, tipoMontagem = 'com-marchas', chaveCriacao) {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            if (chaveCriacao) {
+                const {rows:novas}=await client.query('INSERT INTO configuracoes(id,usuario_id,nome,tipo_montagem) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING RETURNING id,nome,criado_em',[chaveCriacao,usuarioId,nome,tipoMontagem]);
+                if (!novas.length) {
+                    const {rows:existentes}=await client.query('SELECT id,nome,tipo_montagem FROM configuracoes WHERE id=$1 AND usuario_id=$2 FOR UPDATE',[chaveCriacao,usuarioId]);
+                    if (!existentes.length) throw conflito();
+                    const {rows:aplicacoes}=await client.query('SELECT produto_id AS id,posicao FROM configuracao_itens WHERE configuracao_id=$1',[chaveCriacao]);
+                    if (versaoConfiguracao(existentes[0],aplicacoes)!==versaoConfiguracao({nome,tipoMontagem},itens)) throw conflito();
+                    await client.query('COMMIT'); return existentes[0];
+                }
+                for (const item of itens) await client.query('INSERT INTO configuracao_itens(configuracao_id,produto_id,posicao) VALUES($1,$2,$3)',[chaveCriacao,item.id,item.posicao||null]);
+                await client.query('COMMIT'); return novas[0];
+            }
 
             const { rows } = await client.query(
                 'INSERT INTO configuracoes (usuario_id, nome, tipo_montagem) VALUES ($1, $2, $3) RETURNING id, nome, criado_em',

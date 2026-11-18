@@ -2,6 +2,7 @@ const ProdutoModel = require('../models/produtoModel');
 const ConfiguracaoModel = require('../models/configuracaoModel');
 const PDFDocument = require('pdfkit');
 const { avaliarCompletude, tipoValido, TIPOS_MONTAGEM } = require('../models/completudeMontagem');
+const versaoConfiguracao = require('../models/versaoConfiguracao');
 
 const catalogoController = {
     exibirCatalogo: async (req, res) => {
@@ -182,11 +183,12 @@ const catalogoController = {
             }
 
             const configuracao = req.params?.id
-                ? await ConfiguracaoModel.atualizar(req.params.id, req.session.user.id, nome, itensParaSalvar, tipoMontagem)
-                : await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar, tipoMontagem);
+                ? await ConfiguracaoModel.atualizar(req.params.id, req.session.user.id, nome, itensParaSalvar, tipoMontagem, req.body.versao)
+                : await ConfiguracaoModel.salvar(req.session.user.id, nome, itensParaSalvar, tipoMontagem, req.body.chaveCriacao);
             if (!configuracao) return res.status(404).json({ erro: 'Configuração não encontrada.' });
-            res.json({ id: configuracao.id, nome: configuracao.nome });
+            res.json({ id: configuracao.id, nome: configuracao.nome, versao:versaoConfiguracao({nome,tipoMontagem},itensParaSalvar) });
         } catch (erro) {
+            if (erro.code==='CONFIGURACAO_CONFLITO') return res.status(409).json({codigo:'CONFIGURACAO_CONFLITO',erro:'Esta montagem foi alterada em outra aba. Suas escolhas foram mantidas nesta tela. Reabra a montagem para revisar a versão atual antes de salvar.'});
             console.error('Erro ao salvar configuração:', erro);
             res.status(500).json({ erro: 'Erro ao salvar a configuração.' });
         }
@@ -223,7 +225,7 @@ const catalogoController = {
                 id: item.id, nome: item.nome || 'Peça indisponível', posicao: item.posicao || null
             }));
             res.json({ id: configuracao.id, nome: configuracao.nome, itens, indisponiveis,
-                tipoMontagem: configuracao.tipo_montagem || 'com-marchas' });
+                tipoMontagem: configuracao.tipo_montagem || 'com-marchas', versao:versaoConfiguracao(configuracao,itensSalvos) });
         } catch (erro) {
             console.error('Erro ao carregar configuração:', erro);
             res.status(500).json({ erro: 'Erro ao carregar a configuração.' });

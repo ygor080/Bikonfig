@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnSalvarConfig = document.getElementById('btnSalvarConfig');
     const edicaoEl = document.getElementById('configEdicao');
     let configuracaoEmEdicao = null;
+    let versaoEmEdicao = null;
+    let criacaoPendente = null;
     let nomeConfiguracao = '';
     let indisponiveisNaAbertura = false;
     let salvandoConfiguracao = false;
@@ -705,10 +707,12 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const tipoEnviado = tipoMontagemAtual();
                 const estadoEnviado = JSON.stringify({ itens, tipoMontagem: tipoEnviado });
+                const conteudoCriacao = JSON.stringify({nome,itens,tipoMontagem:tipoEnviado});
+                if (!configuracaoEmEdicao && window.crypto?.randomUUID && criacaoPendente?.conteudo !== conteudoCriacao) criacaoPendente = { conteudo:conteudoCriacao, chave:window.crypto.randomUUID() };
                 const resposta = await fetch('/catalogo/api/configuracoes' + (configuracaoEmEdicao ? '/' + encodeURIComponent(configuracaoEmEdicao) : ''), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-                    body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoEnviado })
+                    body: JSON.stringify({ nome: nome, itens, tipoMontagem: tipoEnviado, ...(versaoEmEdicao ? {versao:versaoEmEdicao}:{}), ...(!configuracaoEmEdicao && criacaoPendente ? {chaveCriacao:criacaoPendente.chave}:{}) })
                 });
 
                 if (!resposta.ok) {
@@ -719,6 +723,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const salva = await resposta.json();
                 const contextoAnterior = configuracaoEmEdicao || contextoRascunho;
                 configuracaoEmEdicao = salva.id;
+                versaoEmEdicao = salva.versao || null;
+                criacaoPendente = null;
                 nomeConfiguracao = salva.nome;
                 try {
                     rascunhos?.remover(contextoAnterior);
@@ -750,6 +756,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!resposta.ok) throw new Error('Configuração não encontrada.');
             const dados = await resposta.json();
 
+            versaoEmEdicao = dados.versao || null;
             if (tipoMontagemEl) tipoMontagemEl.value = dados.tipoMontagem || 'com-marchas';
             if (indisponiveisEl) {
                 indisponiveisEl.textContent = '';

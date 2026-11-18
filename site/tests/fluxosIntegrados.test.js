@@ -481,4 +481,23 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.equal(await model.redefinir(payload.link.split('#')[1], nova), false);
     });
 
+    await t.test('montagem repetida não duplica e versão antiga não sobrescreve edição recente', async () => {
+        base=await iniciar();
+        await db.query('INSERT INTO usuarios(nome,email,senha) VALUES($1,$2,$3)',['montagens41','montagens41@teste.com',await bcrypt.hash(senha,10)]);
+        const c=cliente(); await c.pedir('/login',{usuario:'montagens41',senha});
+        const itens=[{id:pneu,posicao:'dianteira'},{id:pneu,posicao:'traseira'}];
+        const body={nome:'Bike 41',tipoMontagem:'single-speed',itens,chaveCriacao:'41414141-4141-4141-8141-414141414141'};
+        const primeira=await c.pedir('/catalogo/api/configuracoes',body); assert.equal(primeira.status,200); const salva=await primeira.json();
+        const repetida=await (await c.pedir('/catalogo/api/configuracoes',body)).json(); assert.equal(repetida.id,salva.id);
+        const aberta=await (await c.pedir('/catalogo/api/configuracoes/'+salva.id)).json(); assert.equal(aberta.itens.length,2); assert.equal(aberta.tipoMontagem,'single-speed');
+        assert.match(aberta.versao,/^[a-f0-9]{64}$/);
+        const editada={nome:'Bike atualizada',itens,tipoMontagem:'com-marchas',versao:aberta.versao};
+        assert.equal((await c.pedir('/catalogo/api/configuracoes/'+salva.id,editada)).status,200);
+        const conflito=await c.pedir('/catalogo/api/configuracoes/'+salva.id,{...editada,nome:'Aba antiga'});
+        assert.equal(conflito.status,409); assert.equal((await conflito.json()).codigo,'CONFIGURACAO_CONFLITO');
+        assert.equal((await (await c.pedir('/catalogo/api/configuracoes/'+salva.id)).json()).nome,'Bike atualizada');
+        assert.equal((await c.pedir('/catalogo/api/configuracoes',{...body,nome:'Conteúdo diferente'})).status,409);
+        assert.equal((await db.query('SELECT COUNT(*) AS n FROM configuracoes WHERE id=$1',[salva.id])).rows[0].n,1);
+    });
+
 });
