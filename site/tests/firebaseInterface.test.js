@@ -49,3 +49,15 @@ test('cancelamento, popup bloqueado e conflito Google permitem tentar novamente 
         b.click(); await aguardar(); assert.equal(acessos, 2);
     }
 });
+
+test('falhas do servidor exibem diagnóstico específico sem expor o corpo bruto', async t => {
+    for (const codigo of ['FIREBASE_BANCO_NAO_CONFIGURADO', 'FIREBASE_CREDENCIAL_INVALIDA', 'FIREBASE_SESSAO_INDISPONIVEL']) {
+        const p = pagina(t, false, true);
+        iniciar({ doc: p.doc, criarCliente: () => ({ google: async () => ({ user: { getIdToken: async () => 'jwt' } }) }),
+            consultar: async (url, opcoes) => opcoes.body ? { ok: false, status: 503, json: async () => ({ codigo, erro: 'SEGREDO' }) }
+                : { ok: true, json: async () => ({}) }, navegar: () => assert.fail('Não deve navegar') });
+        await aguardar(); p.doc.getElementById('entrarGoogle').click(); await aguardar();
+        assert.ok(p.doc.getElementById('erroFirebase').textContent.includes(codigo));
+        assert.ok(!p.doc.getElementById('erroFirebase').textContent.includes('SEGREDO'));
+    }
+});

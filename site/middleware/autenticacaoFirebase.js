@@ -5,6 +5,7 @@ const INVALIDOS = new Set(['auth/argument-error', 'auth/invalid-argument', 'auth
     'auth/invalid-session-cookie', 'auth/user-disabled', 'auth/user-not-found']);
 const DURACAO = 3600000;
 const { createHash } = require('node:crypto');
+const { responderFalhaFirebase } = require('../config/erroFirebase');
 
 async function comPrazo(operacao) {
     let timer;
@@ -65,7 +66,7 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
             if (typeof sessionCookie !== 'string' || !sessionCookie.length) throw new Error('invalid_session');
         } catch (erro) {
             if (INVALIDOS.has(erro.code)) return res.status(401).json({ erro: 'Não foi possível validar sua identidade.', codigo: 'FIREBASE_TOKEN_INVALIDO' });
-            return indisponivel(res);
+            return responderFalhaFirebase(res, erro, 'provedor');
         }
         let usuario;
         try {
@@ -83,12 +84,13 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
                 }
         } catch (erro) {
             if (erro.code === 'CADASTRO_CONFLITO') return res.status(409).json({ erro: 'Não foi possível concluir com esses dados. Se você já tem conta, entre com seu usuário e senha.', codigo: 'CADASTRO_CONFLITO' });
-            return indisponivel(res);
+            return responderFalhaFirebase(res, erro, 'identidade');
         }
         if (!usuario) return res.status(409).json({ erro: 'Esta identidade ainda não está vinculada a uma conta do Bikonfig.', codigo: 'CONTA_NAO_VINCULADA' });
         // O navegador recebe o JWT de sessão apenas em cookie HttpOnly.
         // O store guarda somente a identidade vinculada, sem tokens Firebase.
-        await autenticarSessao(req, usuario, { projectId: config.projectId, uid: claims.uid });
+        try { await autenticarSessao(req, usuario, { projectId: config.projectId, uid: claims.uid }); }
+        catch (erro) { return responderFalhaFirebase(res, erro, 'sessao'); }
         res.cookie(NOME_COOKIE_FIREBASE, sessionCookie, { ...opcoesCookie, maxAge: DURACAO });
         res.json({ redirecionar: '/home' });
     }

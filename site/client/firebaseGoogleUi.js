@@ -31,7 +31,7 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
             });
             if (!resposta.ok) {
                 const dados = await resposta.json().catch(() => ({}));
-                throw Object.assign(new Error('servidor'), { code: dados.codigo || (resposta.status === 403 ? 'CSRF' : 'SERVIDOR') });
+                throw Object.assign(new Error('servidor'), { code: dados.codigo || (resposta.status === 403 ? 'CSRF' : resposta.status === 429 ? 'MUITAS_TENTATIVAS' : 'SERVIDOR') });
             }
             await sdk.sair().catch(() => {});
             status.textContent = 'Acesso autorizado. Abrindo sua conta…'; navegar('/home');
@@ -46,9 +46,20 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
                 'auth/network-request-failed': 'Não foi possível conectar. Confira sua conexão e tente novamente.',
                 'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
                 CADASTRO_CONFLITO: 'Já existe uma conta com esses dados. Entre com seu usuário e senha. O Google não será vinculado automaticamente.',
+                FIREBASE_BANCO_NAO_CONFIGURADO: 'O acesso Google ainda precisa ser configurado no servidor (código: FIREBASE_BANCO_NAO_CONFIGURADO). Avise o responsável pelo site.',
+                FIREBASE_BANCO_INDISPONIVEL: 'Não foi possível consultar sua conta no servidor (código: FIREBASE_BANCO_INDISPONIVEL). Tente novamente mais tarde.',
+                FIREBASE_CREDENCIAL_INVALIDA: 'O servidor não conseguiu validar o acesso Google (código: FIREBASE_CREDENCIAL_INVALIDA). Avise o responsável pelo site.',
+                FIREBASE_SESSAO_INDISPONIVEL: 'O servidor não conseguiu salvar sua sessão (código: FIREBASE_SESSAO_INDISPONIVEL). Tente novamente mais tarde.',
+                FIREBASE_INDISPONIVEL: 'Não foi possível comunicar com o serviço de autenticação (código: FIREBASE_INDISPONIVEL). Tente novamente mais tarde.',
+                FIREBASE_TOKEN_INVALIDO: 'Não foi possível validar o acesso. Atualize a página e selecione sua conta Google novamente.',
+                LOGIN_RECENTE_NECESSARIO: 'Selecione sua conta Google novamente para autorizar um acesso recente.',
+                FIREBASE_DESABILITADO: 'O acesso Google está desabilitado no servidor. Avise o responsável pelo site.',
+                GOOGLE_IDENTIDADE_INVALIDA: 'Selecione uma conta Google com e-mail confirmado.',
+                MUITAS_TENTATIVAS: 'Muitas tentativas. Aguarde 15 minutos antes de tentar novamente.',
                 CSRF: 'A página expirou. Atualize antes de tentar novamente.'
             };
-            status.textContent = ''; mostrarErro(mensagens[e.code] || 'Não foi possível entrar com Google agora. Tente novamente em alguns instantes.');
+            const codigo = typeof e.code === 'string' && /^auth\/[a-z0-9.-]{1,70}$/.test(e.code) ? e.code : 'GOOGLE_ERRO_DESCONHECIDO';
+            status.textContent = ''; mostrarErro(mensagens[e.code] || `Não foi possível entrar com Google (código: ${codigo}). Tente novamente e informe esse código ao responsável pelo site.`);
         } finally {
             delete form.dataset.authBusy; form.removeAttribute('aria-busy'); botao.disabled = false; enviar.disabled = false;
         }
