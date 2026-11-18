@@ -7,7 +7,9 @@ const esperar = () => new Promise(resolve => setImmediate(resolve));
 
 async function abrir(t, relatorio, falha = false) {
     const html = ejs.render(fs.readFileSync(require.resolve('../views/configurador.ejs'), 'utf8'), {
-        usuario: { nome: 'Teste' }, categorias: [{ slug: 'quadro', nome: 'Quadro', subcategorias: [{ slug: 'quadro', nome: 'Quadro' }] }]
+        usuario: { nome: 'Teste' }, completudeInicial: require('../models/completudeMontagem').avaliarCompletude([]),
+        categorias: [{ slug: 'quadro', nome: 'Quadro', subcategorias: [{ slug: 'quadro', nome: 'Quadro' },
+            { slug: 'quadro-garfo', nome: 'Garfo' }, { slug: 'quadro-amortecedor', nome: 'Amortecedor traseiro' }] }]
     });
     const dom = new JSDOM(html, { url: 'https://bikonfig.test/catalogo/configurador', runScripts: 'dangerously' });
     t.after(() => dom.window.close());
@@ -35,6 +37,25 @@ test('indicador fica compacto e detalhes fechados; clique abre e fecha sem perde
     assert.equal(detalhes.querySelector('img'), null);
     btn.click(); assert.equal(detalhes.hidden, true);
     assert.match(r.d.getElementById('configEstadoComponentes').textContent, /2 componentes/);
+});
+
+test('bolinha vermelha acompanha o nome da categoria obrigatória e some ao atender o requisito', async t => {
+    const r = await abrir(t, { status: 'incompleta', selecionados: 1, total: 2,
+        faltantes: [{ chave: 'quadro-garfo', nome: 'Garfo', categorias: ['quadro-garfo'] }], confirmar: [] });
+    const quadro = r.d.querySelector('[data-obrigatorio="quadro"]');
+    const garfo = r.d.querySelector('[data-obrigatorio="quadro-garfo"]');
+    assert.equal(quadro.hidden, false); assert.equal(garfo.hidden, false);
+    assert.equal(r.d.querySelector('[data-obrigatorio="quadro-amortecedor"]').hidden, true);
+    assert.ok(quadro.closest('.config-nome-categoria'));
+    assert.equal(r.d.querySelector('.config-obrigatorio-grupo').hidden, false);
+    await r.selecionar();
+    assert.equal(quadro.hidden, true); assert.equal(garfo.hidden, false);
+    assert.match(garfo.getAttribute('aria-label'), /Garfo/);
+    assert.equal(r.d.querySelector('[data-check="quadro"]').classList.contains('marcado'), true);
+    r.w.fetch = async () => ({ ok: true, json: async () => ({ total: 0, avisos: [],
+        completude: require('../models/completudeMontagem').avaliarCompletude([]) }) });
+    r.d.getElementById('btnLimparConfig').click(); await esperar();
+    assert.equal(quadro.hidden, false);
 });
 
 test('indicador distingue confirmação, itens selecionados e falha sem afirmar compatibilidade', async t => {

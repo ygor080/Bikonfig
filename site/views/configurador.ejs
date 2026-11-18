@@ -36,12 +36,13 @@
         <a href="#configResumo">Resumo e salvar</a>
     </nav>
     <main class="config-wrapper">
-        <aside class="config-menu" id="configMenu" tabindex="-1" aria-labelledby="configTituloCategorias" data-usuario-id="<%= usuario.id %>">
+        <aside class="config-menu" id="configMenu" tabindex="-1" aria-labelledby="configTituloCategorias" data-usuario-id="<%= usuario.id %>" data-completude-inicial="<%= JSON.stringify(typeof completudeInicial !== 'undefined' ? completudeInicial : null) %>">
             <h2 class="config-menu-titulo" id="configTituloCategorias">Categorias de peças</h2>
+            <input type="hidden" id="configCompletudesPorTipo" value="<%= JSON.stringify(typeof completudesPorTipo !== 'undefined' ? completudesPorTipo : {}) %>">
             <% categorias.forEach(function(grupo) { %>
                 <div class="config-grupo" data-grupo="<%= grupo.slug %>">
                     <button type="button" class="config-grupo-btn" aria-expanded="false" aria-controls="subitens-<%= grupo.slug %>">
-                        <span><%= grupo.nome %></span>
+                        <span class="config-nome-categoria"><span><%= grupo.nome %></span><span class="config-obrigatorio config-obrigatorio-grupo" role="img" aria-label="Há componentes essenciais pendentes neste grupo" hidden></span></span>
                         <span class="config-grupo-seta">▾</span>
                     </button>
                     <ul class="config-subitens" id="subitens-<%= grupo.slug %>" hidden>
@@ -51,7 +52,7 @@
                                     class="config-subitem-btn"
                                     data-subcategoria="<%= sub.slug %>"
                                     data-nome="<%= sub.nome %>">
-                                    <%= sub.nome %>
+                                    <span class="config-nome-categoria"><span><%= sub.nome %></span><span class="config-obrigatorio" data-obrigatorio="<%= sub.slug %>" role="img" hidden></span></span>
                                     <span class="config-check" data-check="<%= sub.slug %>"></span>
                                 </button>
                             </li>
@@ -87,9 +88,9 @@
         <aside class="config-orcamento" id="configResumo" tabindex="-1" aria-label="Resumo e salvamento">
             <div class="config-resumo-cabecalho">
                 <h2 class="config-menu-titulo">Resumo da configuração</h2>
-                <button type="button" id="btnComponentesEssenciais" class="config-indicador-componentes" data-estado="incompleta"
+                <button type="button" id="btnComponentesEssenciais" class="config-detalhes-componentes" data-estado="incompleta"
                     aria-expanded="false" aria-controls="configCompletude" aria-label="Faltam componentes essenciais. Ver detalhes."
-                    title="Faltam componentes essenciais. Ver detalhes."><span class="config-indicador-bolinha" aria-hidden="true"></span></button>
+                    title="Faltam componentes essenciais. Ver detalhes.">Ver detalhes</button>
             </div>
             <span id="configEstadoComponentes" class="texto-acessivel" role="status" aria-live="polite">Faltam componentes essenciais.</span>
             <section id="configCompletude" class="config-completude" aria-label="Detalhes dos componentes essenciais" hidden>

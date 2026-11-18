@@ -21,7 +21,22 @@ function avaliarCompletude(pecas, tipo = 'com-marchas') {
         });
     }
     function exigir(chave, nome, atendido) {
-        requisitos.push({ chave, nome, atendido: !!atendido });
+        const alternativas = {
+            'apoio-maos': ['guidao-manoplas', 'guidao-fita'], pedal: ['pedal', 'outros-pedal'],
+            'cambio-traseiro': ['cambio-traseiro-desviador'], 'trocador-traseiro': ['cambio-traseiro-trocador'],
+            'cambio-dianteiro': ['cambio-dianteiro-desviador'], 'trocador-dianteiro': ['cambio-dianteiro-trocador'],
+            amortecedor: ['quadro-amortecedor'], 'transmissao-single-speed': ['transmissao-single-speed', 'cassete', 'rodas-cubo-traseiro']
+        };
+        for (const lado of ['dianteira', 'traseira']) {
+            const sufixo = lado === 'dianteira' ? 'dianteiro' : 'traseiro';
+            alternativas['roda-' + lado] = ['rodas', 'rodas-' + lado, 'rodas-aro', 'rodas-raio', 'rodas-cubo', 'rodas-cubo-' + sufixo];
+            alternativas['pneu-' + lado] = ['pneus'];
+            alternativas['fixacao-' + lado] = ['fixacao-roda', 'fixacao-roda-' + sufixo];
+            alternativas['freio-' + lado] = ['freios', 'freios-' + sufixo];
+            alternativas['camara-' + lado] = ['rodas-camara-ar'];
+            alternativas['disco-' + lado] = ['freios-disco'];
+        }
+        requisitos.push({ chave, nome, atendido: !!atendido, categorias: alternativas[chave] || [chave] });
     }
     for (const [categoria, nome] of [
         ['quadro', 'Quadro'], ['quadro-garfo', 'Garfo ou suspensão dianteira'], ['direcao', 'Caixa de direção'],
@@ -85,4 +100,4 @@ function avaliarCompletude(pecas, tipo = 'com-marchas') {
     };
 }
 
-module.exports = { avaliarCompletude, tipoValido };
+module.exports = { avaliarCompletude, tipoValido, TIPOS_MONTAGEM };

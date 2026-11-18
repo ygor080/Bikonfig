@@ -1,7 +1,7 @@
 const ProdutoModel = require('../models/produtoModel');
 const ConfiguracaoModel = require('../models/configuracaoModel');
 const PDFDocument = require('pdfkit');
-const { avaliarCompletude, tipoValido } = require('../models/completudeMontagem');
+const { avaliarCompletude, tipoValido, TIPOS_MONTAGEM } = require('../models/completudeMontagem');
 
 const catalogoController = {
     exibirCatalogo: async (req, res) => {
@@ -31,7 +31,9 @@ const catalogoController = {
 
         res.render('configurador', {
             usuario: req.session.user,
-            categorias: await ProdutoModel.getEstruturaCategorias()
+            categorias: await ProdutoModel.getEstruturaCategorias(),
+            completudeInicial: avaliarCompletude([]),
+            completudesPorTipo: Object.fromEntries(TIPOS_MONTAGEM.map(tipo => [tipo, avaliarCompletude([], tipo)]))
         });
     },
 

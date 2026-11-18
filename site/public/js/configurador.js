@@ -417,6 +417,24 @@ document.addEventListener('DOMContentLoaded', function () {
     let versaoOrcamento = 0;
 
     function mostrarCompletude(relatorio) {
+        const porCategoria = new Map();
+        (relatorio?.faltantes || []).forEach(function (item) {
+            (item.categorias || [item.chave]).filter(Boolean).forEach(function (slug) {
+                if (!porCategoria.has(slug)) porCategoria.set(slug, []);
+                porCategoria.get(slug).push(item.nome);
+            });
+        });
+        configMenu.querySelectorAll('[data-obrigatorio]').forEach(function (bolinha) {
+            const pendencias = porCategoria.get(bolinha.dataset.obrigatorio) || [];
+            bolinha.hidden = pendencias.length === 0;
+            const descricao = 'Componente essencial pendente: ' + pendencias.join('; ') + '. Esta categoria pode ser uma das alternativas para atendê-lo.';
+            bolinha.setAttribute('aria-label', descricao);
+            bolinha.title = descricao;
+        });
+        configMenu.querySelectorAll('.config-grupo').forEach(function (grupo) {
+            const bolinha = grupo.querySelector('.config-obrigatorio-grupo');
+            if (bolinha) bolinha.hidden = !Array.from(grupo.querySelectorAll('[data-obrigatorio]')).some(el => !el.hidden);
+        });
         if (!completudeEl) return;
         completudeEl.textContent = '';
         if (!relatorio) {
@@ -499,6 +517,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btnAtualizarOrcamento) btnAtualizarOrcamento.disabled = false;
 
         if (entradas.length === 0) {
+            try {
+                const porTipo = JSON.parse(document.getElementById('configCompletudesPorTipo')?.value || '{}');
+                const inicial = porTipo[tipoMontagemAtual()] || JSON.parse(configMenu.dataset.completudeInicial || 'null');
+                mostrarCompletude(inicial);
+            } catch { mostrarCompletude(null); }
             atualizarIndicadorComponentes('incompleta', 'Nenhuma peça selecionada. Faltam componentes essenciais.');
             if (completudeEl) completudeEl.textContent = 'Nenhuma peça selecionada. Escolha os componentes para conferir a lista de itens essenciais deste tipo de montagem.';
             orcamentoListaEl.innerHTML = '<li class="config-orcamento-vazio">Nenhuma peça selecionada ainda.</li>';
@@ -816,6 +839,10 @@ document.addEventListener('DOMContentLoaded', function () {
             await carregarPecaDoCatalogo(parametrosDaUrl.get('produto'), parametrosDaUrl.get('subcategoria'));
         }
     }
+    try {
+        const inicial = JSON.parse(configMenu.dataset.completudeInicial || 'null');
+        if (inicial) mostrarCompletude(inicial);
+    } catch { /* Sem dados iniciais, a próxima resposta do orçamento atualiza as marcas. */ }
     iniciarSelecao();
 
     const primeiroGrupo = configMenu.querySelector('.config-grupo');

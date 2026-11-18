@@ -444,3 +444,8 @@
     .config-atalhos a:last-child { background: var(--laranja); color: #fff; }
     .config-grupo-btn, .config-subitem-btn, .config-posicao-btn { min-height: 44px; }
 }
+
+.config-nome-categoria { display: inline-flex; align-items: center; gap: 6px; min-width: 0; text-align: left; }
+.config-obrigatorio { display: inline-block; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #c62828; }
+.config-obrigatorio[hidden] { display: none; }
+.config-detalhes-componentes { border: 0; background: transparent; color: var(--laranja); cursor: pointer; text-decoration: underline; font: inherit; font-size: 12px; }
