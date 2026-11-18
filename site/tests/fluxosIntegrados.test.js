@@ -385,12 +385,12 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         const recuperacao = await visitante.pedir('/recuperar-senha');
         assert.equal(recuperacao.status, 200);
         const recuperarHtml = await recuperacao.text();
-        assert.match(recuperarHtml, /data-operacao="recuperar"/);
-        assert.match(recuperarHtml, /firebase-auth.bundle.js/);
+        assert.match(recuperarHtml, /ainda não está disponível/);
+        assert.ok(!recuperarHtml.includes('firebase-auth.bundle.js'));
         verificarFormularios(recuperarHtml);
         const semCsrf = await fetch(base + '/recuperar-senha', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
         assert.equal(semCsrf.status, 403);
-        assert.equal((await visitante.pedir('/recuperar-senha', { email: 'nao-enviar@teste.com' })).status, 405);
+        assert.equal((await visitante.pedir('/recuperar-senha', { email: 'nao-enviar@teste.com' })).status, 503);
         const pagina = await visitante.pedir('/login'), html = await pagina.text();
         assert.match(html, /name="usuario"/); assert.match(html, /action="\/login"/);
         assert.match(html, /firebase-auth.bundle.js/); assert.ok(!html.includes('legado=1'));
@@ -444,5 +444,41 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.equal((await db.query('SELECT usuario_id FROM configuracoes WHERE id = $1', [salvaGoogle.id])).rows[0].usuario_id, identidade.id);
     });
 
+
+    await t.test('recuperação local usa link único, fila cifrada, expiração e invalida sessões antigas', async () => {
+        const migracao = fs.readFileSync(path.join(__dirname, '../../database/migrations/038_recuperacao_senha.sql'), 'utf8');
+        await db.exec(migracao); await db.exec(migracao);
+        const recuperacaoEnv = { ...env, RECUPERACAO_SENHA_ENABLED: 'true', PUBLIC_BASE_URL: 'https://bikonfig.test', RESEND_API_KEY: 'chave-apenas-teste', EMAIL_FROM: 'login@bikonfig.test' };
+        base = await iniciar(recuperacaoEnv);
+        const antigo = cliente(), publico = cliente();
+        assert.equal((await antigo.pedir('/login', { usuario: 'outro', senha })).status, 302);
+        const email = (await db.query("SELECT email FROM usuarios WHERE nome='outro'")).rows[0].email;
+        const resposta = await publico.pedir('/recuperar-senha', { email });
+        assert.equal(resposta.status, 200); assert.match(await resposta.text(), /Se houver uma conta/);
+        assert.match(await (await publico.pedir('/recuperar-senha', { email: 'inexistente@teste.com' })).text(), /Se houver uma conta/);
+        await publico.pedir('/recuperar-senha', { email });
+        assert.equal((await db.query('SELECT COUNT(*) AS n FROM recuperacoes_senha')).rows[0].n, 1);
+        const dadosFila = (await db.query('SELECT * FROM recuperacoes_senha')).rows[0];
+        assert.ok(!dadosFila.email_payload.includes(email));
+        let mensagem;
+        await require('../services/emailRecuperacao').processarEmails({ pool, env: recuperacaoEnv, consultar: async (url, opcoes) => {
+            assert.equal(url, 'https://api.resend.com/emails'); mensagem = JSON.parse(opcoes.body); return { ok: true };
+        } });
+        const token = mensagem.text.match(/redefinir-senha#([a-f0-9]{64})/)[1];
+        assert.notEqual(dadosFila.token_hash, token);
+        const nova = 'SenhaNovaLocal123!';
+        assert.equal((await publico.pedir('/redefinir-senha', { token, senha: nova, confirmarSenha: nova })).status, 200);
+        assert.equal((await antigo.pedir('/home')).status, 302);
+        assert.equal(await require('../models/usuarioModel').validarLogin('outro', senha), null);
+        assert.ok(await require('../models/usuarioModel').validarLogin('outro', nova));
+        assert.equal((await publico.pedir('/redefinir-senha', { token, senha: nova, confirmarSenha: nova })).status, 400);
+        const model = require('../models/recuperacaoSenhaModel').criarRecuperacaoModel(pool, require('../config/recuperacaoSenha').configuracao(recuperacaoEnv));
+        await db.query("UPDATE recuperacoes_senha SET criado_em=now()-interval '2 minutes'");
+        await model.solicitar(email);
+        await db.query("UPDATE recuperacoes_senha SET expira_em=now()-interval '1 minute' WHERE usado_em IS NULL");
+        const expirada = (await db.query('SELECT email_payload FROM recuperacoes_senha WHERE usado_em IS NULL')).rows[0];
+        const payload = require('../config/recuperacaoSenha').decifrar(expirada.email_payload, require('../config/recuperacaoSenha').configuracao(recuperacaoEnv).key);
+        assert.equal(await model.redefinir(payload.link.split('#')[1], nova), false);
+    });
 
 });

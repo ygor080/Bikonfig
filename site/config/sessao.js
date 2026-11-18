@@ -17,6 +17,7 @@ function autenticarSessao(req, usuario, firebaseAuth = null) {
         req.session.regenerate(erro => {
             if (erro) return reject(erro);
             req.session.user = { id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin === true };
+            if (Number.isInteger(usuario.senhaVersao)) req.session.user.senhaVersao = usuario.senhaVersao;
             if (firebaseAuth) req.session.firebaseAuth = firebaseAuth;
             req.session.save(erroSalvar => erroSalvar ? reject(erroSalvar) : resolve());
         });

@@ -28,6 +28,7 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     const PgSession = require('connect-pg-simple')(session);
     opcoes.store = store || new PgSession({ pool, tableName: 'sessoes_site', createTableIfMissing: true });
     app.use(session(opcoes));
+    app.use(require('./middleware/versaoSenha')({ env, pool }));
     app.locals.firebaseProjectId = configFirebaseWeb.habilitado ? configFirebaseWeb.projectId : null;
     const firebase = require('./middleware/autenticacaoFirebase').criarAutenticacaoFirebase({ env, auth: firebaseAuth });
     app.use(firebase.validarSessao);
@@ -39,6 +40,7 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     });
     app.get('/auth/firebase/config', firebase.configurar);
     app.post('/auth/firebase/google', require('./middleware/limiteAutenticacao').criarLimiteAutenticacao(), firebase.entrarGoogle);
+    app.use(require('./routes/recuperacaoSenhaRoutes').criarRotasRecuperacao({ env, pool }));
     app.use('/', require('./routes/authRoutes'));
     app.use('/catalogo', require('./routes/catalogoRoutes'));
     app.use('/admin', require('./routes/adminRoutes'));

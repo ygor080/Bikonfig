@@ -40,7 +40,7 @@ class UsuarioModel {
         const user = await this.buscarPorNome(nome);
         if (!user || !(await bcrypt.compare(senha, user.senha))) return null;
         await pool.query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1', [user.id]);
-        return { id: user.id, nome: user.nome, email: user.email, isAdmin: user.is_admin === true };
+        return { id: user.id, nome: user.nome, email: user.email, isAdmin: user.is_admin === true, ...(Number.isInteger(user.senha_versao) ? { senhaVersao: user.senha_versao } : {}) };
     }
 }
 

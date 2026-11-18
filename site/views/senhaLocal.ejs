@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <link rel="icon" type="image/png" href="/img/logo-bikonfig.png">
+    <link rel="apple-touch-icon" href="/img/logo-bikonfig.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <title>Senha da conta - Bikonfig</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho"><div class="container"><a href="/" class="logo"><img class="logo-imagem" src="/img/logo-bikonfig.png" alt="" width="40" height="40" decoding="async"><span>Bikonfig</span></a></div></header>
+    <main class="container"><div class="login-box">
+        <h1><%= etapa === 'redefinir' ? 'Definir nova senha' : 'Recuperar senha' %></h1>
+        <% if (erro) { %><p class="erro" role="alert"><%= erro %></p><% } %>
+        <% if (mensagem) { %><p role="status"><%= mensagem %></p><% } %>
+        <% if (!habilitado) { %><p>A recuperação de senha ainda não está disponível neste ambiente.</p><% } else if (!mensagem) { %>
+        <form method="POST" action="<%= etapa==='redefinir' ? '/redefinir-senha' : '/recuperar-senha' %>" class="form-login" id="formSenhaLocal">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <% if (etapa==='redefinir') { %>
+            <input type="hidden" name="token" id="tokenRecuperacao" value="<%= token %>">
+            <label for="senha">Nova senha</label><input type="password" id="senha" name="senha" minlength="8" autocomplete="new-password" required>
+            <small>Mínimo de 8 caracteres, maiúscula, minúscula, número e caractere especial.</small>
+            <label for="confirmarSenha">Confirmar nova senha</label><input type="password" id="confirmarSenha" name="confirmarSenha" autocomplete="new-password" required>
+            <p id="avisoToken" role="alert" hidden>Link inválido. Solicite outra recuperação.</p>
+            <button class="btn-principal" type="submit" id="confirmarRedefinicao" disabled>Alterar senha</button>
+            <noscript>Ative o JavaScript para usar o link seguro de recuperação.</noscript>
+            <% } else { %>
+            <label for="email">E-mail da sua conta</label><input type="email" name="email" id="email" autocomplete="email" maxlength="254" required>
+            <button class="btn-principal" type="submit">Enviar instruções</button>
+            <% } %>
+        </form><% } %>
+        <p>Se você usa Google, entre com Google. Essa recuperação atende somente contas com usuário e senha do Bikonfig.</p>
+        <p><a href="/login">Voltar ao login</a></p>
+    </div></main>
+    <footer class="rodape"><div class="container"><p>Bikonfig - Configurador de bicicletas</p></div></footer>
+    <script src="/js/senha-local.js"></script>
+</body>
+</html>

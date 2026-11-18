@@ -1,6 +1,6 @@
 const { initializeApp } = require('firebase/app');
 const { initializeAuth, inMemoryPersistence, signOut, GoogleAuthProvider, signInWithPopup,
-    browserPopupRedirectResolver, sendPasswordResetEmail } = require('firebase/auth');
+    browserPopupRedirectResolver } = require('firebase/auth');
 const { iniciar } = require('./firebaseAuthUi');
 document.addEventListener('DOMContentLoaded', () => iniciar({
     async criarCliente(config) {
@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => iniciar({
         await auth.authStateReady();
         auth.languageCode = 'pt-BR';
         return {
-            recuperar: email => sendPasswordResetEmail(auth, email),
             google: () => {
                 const provedor = new GoogleAuthProvider();
                 provedor.setCustomParameters({ prompt: 'select_account' });

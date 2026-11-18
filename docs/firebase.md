@@ -50,11 +50,7 @@ sessão. Falhas temporárias do provedor não liberam conteúdo protegido.
 Contas já associadas a identidade externa continuam impedidas de contornar a
 autenticação externa pelo bcrypt antigo; não há remoção de dados existentes.
 
-A recuperação Firebase entregue anteriormente permanece em /recuperar-senha
-para identidades Firebase já existentes; não autentica nem cria conta e não
-altera a senha local. Ela não é oferecida como recuperação do login tradicional.
-A redefinição usa a página padrão hospedada pelo Firebase. A recuperação da
-conta Google é administrada pelo Google.
+A recuperação tradicional está descrita em [recuperacao-senha.md](recuperacao-senha.md). Ela não altera contas Google; o fluxo antigo de recuperação Firebase foi substituído.
 
 ## Verificação
 

@@ -8,9 +8,7 @@ function iniciar({ doc = document, criarCliente, consultar = fetch, navegar = ur
         })().catch(e => { promessa = null; throw e; });
         return promessa;
     };
-    if (doc.querySelector('form[data-operacao="recuperar"]')) {
-        require('./firebaseRecuperacaoUi').iniciarRecuperacao({ doc, obterCliente });
-    } else if (doc.getElementById('entrarGoogle')) {
+    if (doc.getElementById('entrarGoogle')) {
         require('./firebaseGoogleUi').iniciarGoogle({ doc, obterCliente, consultar, navegar });
     }
 }
