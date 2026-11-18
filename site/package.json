@@ -14,7 +14,8 @@
     "check:published": "node scripts/verificarPublicacao.js",
     "check:firebase": "node scripts/verificarFirebase.js",
     "build:auth": "esbuild client/firebaseAuth.js --bundle --minify --legal-comments=eof --outfile=public/js/firebase-auth.bundle.js --platform=browser --target=es2020",
-    "check:google:published": "node scripts/verificarGooglePublicado.js"
+    "check:google:published": "node scripts/verificarGooglePublicado.js",
+    "build:brand": "node scripts/otimizarMarca.js"
   },
   "keywords": [],
   "author": "",
@@ -37,6 +38,7 @@
     "@electric-sql/pglite": "^0.5.16",
     "esbuild": "^0.28.2",
     "jsdom": "^27.4.0",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "sharp": "^0.35.5"
   }
 }

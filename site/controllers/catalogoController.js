@@ -132,72 +132,8 @@ const catalogoController = {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="bikonfig-resumo-configuracao.pdf"');
 
-            const doc = new PDFDocument({ margin: 50, size: 'A4' });
+            const doc = require('../services/pdfMontagem').criarPdfMontagem(linhas, nomeUsuario);
             doc.pipe(res);
-
-            doc.fillColor('#ff6600').fontSize(22).text('Bikonfig', { continued: false });
-            doc.fillColor('#333').fontSize(14).text('Lista de peças da sua bicicleta', { continued: false });
-            doc.moveDown(0.3);
-            doc.fillColor('#888').fontSize(9).text('Gerado para: ' + nomeUsuario);
-            doc.fillColor('#888').fontSize(9).text('Data: ' + new Date().toLocaleDateString('pt-BR'));
-            doc.moveDown(1);
-
-            const colunaNomeX = 50;
-            const colunaPrecoX = 330;
-            const colunaLinkX = 410;
-            const larguraPagina = doc.page.width - 100;
-
-            function desenharCabecalhoTabela() {
-                doc.fontSize(10).fillColor('#666');
-                doc.text('Peça', colunaNomeX, doc.y, { continued: false });
-                doc.text('Preço', colunaPrecoX, doc.y - doc.currentLineHeight(), { continued: false });
-                doc.text('Link para compra', colunaLinkX, doc.y - doc.currentLineHeight(), { continued: false });
-                doc.moveDown(0.3);
-                doc.moveTo(colunaNomeX, doc.y).lineTo(colunaNomeX + larguraPagina, doc.y).strokeColor('#ddd').stroke();
-                doc.moveDown(0.5);
-            }
-
-            desenharCabecalhoTabela();
-
-            linhas.forEach(linha => {
-                if (doc.y > doc.page.height - 100) {
-                    doc.addPage();
-                    desenharCabecalhoTabela();
-                }
-
-                const yLinha = doc.y;
-                doc.fillColor('#333').fontSize(10).text(linha.nome, colunaNomeX, yLinha, { width: 270 });
-                const yDepoisNome = doc.y;
-
-                doc.fillColor('#ff6600').fontSize(10)
-                    .text('R$ ' + linha.preco.toFixed(2), colunaPrecoX, yLinha, { width: 70 });
-
-                if (linha.link) {
-                    doc.fillColor('#0066cc').fontSize(9)
-                        .text('Ver produto', colunaLinkX, yLinha, {
-                            width: larguraPagina - (colunaLinkX - colunaNomeX),
-                            link: linha.link,
-                            underline: true
-                        });
-                } else {
-                    doc.fillColor('#999').fontSize(9).text('Link indisponível', colunaLinkX, yLinha);
-                }
-
-                doc.y = Math.max(yDepoisNome, doc.y) + 8;
-                doc.moveTo(colunaNomeX, doc.y).lineTo(colunaNomeX + larguraPagina, doc.y).strokeColor('#f0f0f0').stroke();
-                doc.moveDown(0.5);
-            });
-
-            doc.moveDown(0.5);
-            doc.fontSize(13).fillColor('#333').text('Total: ', colunaNomeX, doc.y, { continued: true });
-            doc.fillColor('#ff6600').fontSize(13).text('R$ ' + total.toFixed(2));
-
-            doc.moveDown(1.5);
-            doc.fontSize(8).fillColor('#aaa').text(
-                'Gerado automaticamente pelo configurador Bikonfig. Preços podem mudar sem aviso — confira sempre no link antes de comprar.',
-                colunaNomeX, doc.y, { width: larguraPagina }
-            );
-
             doc.end();
         } catch (erro) {
             console.error('Erro ao gerar PDF:', erro);
