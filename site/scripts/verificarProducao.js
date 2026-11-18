@@ -10,7 +10,7 @@ async function executar() {
     try {
         if (!pendencias.some(item => item.startsWith('DATABASE_URL'))) {
             pool = require('../config/banco').pool;
-            banco = await verificarBanco(pool);
+            banco = await verificarBanco(pool, process.env);
             pendencias.push(...banco.pendencias);
         }
     } catch {

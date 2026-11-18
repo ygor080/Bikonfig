@@ -102,3 +102,10 @@ local, integridade de credenciais, ausência de duplicação, logout que
 invalida o cookie anterior e retorno à mesma conta com sua montagem.
 O provedor é simulado nesses testes; não são usados tokens reais de usuários.
 Não há nova migração SQL nem variável de ambiente nesta etapa.
+
+
+## Operação final
+
+Consulte [operacao-final.md](operacao-final.md) para ativação da recuperação,
+monitoramento, aviso de privacidade e backup local cifrado. Backups externos
+não foram habilitados.

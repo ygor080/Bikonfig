@@ -24,10 +24,11 @@ function verificarAmbiente(env, local = false) {
         if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || env.DATABASE_URL.includes('COLE_A_')) throw new Error();
     } catch { pendencias.push('DATABASE_URL ausente ou inválida.'); }
     if (!local && env.NODE_ENV !== 'production') pendencias.push('Configure NODE_ENV=production no Render.');
+    try { require('./recuperacaoSenha').configuracao(env); } catch { pendencias.push('Configuração da recuperação de senha inválida. Confira remetente, origem fixa e serviço de e-mail.'); }
     return pendencias;
 }
 
-async function verificarBanco(pool) {
+async function verificarBanco(pool, env = {}) {
     const { rows } = await pool.query(`SELECT table_name, column_name FROM information_schema.columns
         WHERE table_schema = current_schema() AND table_name = ANY($1::text[])`, [Object.keys(ESTRUTURA)]);
     const presentes = new Set(rows.map(row => row.table_name + '.' + row.column_name));
@@ -45,6 +46,14 @@ async function verificarBanco(pool) {
         if (!permissoes.permitido) pendencias.push('Sessões: faltam permissões de leitura ou gravação.');
         // Valida os campos sem ler o conteúdo das sessões.
         await pool.query('SELECT sid, sess, expire FROM sessoes_site LIMIT 0');
+    }
+    if (env.RECUPERACAO_SENHA_ENABLED==='true') {
+        const {rows:[estrutura]}=await pool.query("SELECT to_regclass('recuperacoes_senha') IS NOT NULL AS fila, EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='usuarios' AND column_name='senha_versao') AS versao");
+        if (!estrutura.fila || !estrutura.versao) pendencias.push('Aplique a migração 038 antes de ativar a recuperação de senha.');
+        else {
+            const {rows:[acesso]}=await pool.query("SELECT row_security_active('recuperacoes_senha'::regclass) AS rls, has_table_privilege('recuperacoes_senha','SELECT,INSERT,UPDATE,DELETE') AS permitido");
+            if(acesso.rls||!acesso.permitido)pendencias.push('A conexão do servidor precisa de acesso privado à fila de recuperação.');
+        }
     }
     return { pendencias, sessoes: sessao.existe ? 'tabela existente' : 'criação automática no primeiro uso' };
 }

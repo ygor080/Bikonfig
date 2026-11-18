@@ -15,7 +15,10 @@
     "check:firebase": "node scripts/verificarFirebase.js",
     "build:auth": "esbuild client/firebaseAuth.js --bundle --minify --legal-comments=eof --outfile=public/js/firebase-auth.bundle.js --platform=browser --target=es2020",
     "check:google:published": "node scripts/verificarGooglePublicado.js",
-    "build:brand": "node scripts/otimizarMarca.js"
+    "build:brand": "node scripts/otimizarMarca.js",
+    "backup:create": "node scripts/backupBanco.js criar",
+    "backup:restore": "node scripts/backupBanco.js restaurar",
+    "test:backup:local": "node scripts/testarRestauracaoLocal.js --confirmar-teste-local"
   },
   "keywords": [],
   "author": "",

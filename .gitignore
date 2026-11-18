@@ -38,3 +38,10 @@ firebase-admin*.json
 *-firebase-adminsdk-*.json
 service-account*.json
 firebase-users*.json
+
+# Backups e restaurações com dados privados
+backups/
+*.dump
+*.dump.enc
+*.dump.enc.json
+*.backup

@@ -11,5 +11,5 @@ document.addEventListener('DOMContentLoaded', () => {
         const senha = document.getElementById('senha'), confirmar = document.getElementById('confirmarSenha');
         if (senha && confirmar && senha.value !== confirmar.value) { e.preventDefault(); confirmar.setCustomValidity('As senhas não conferem.'); confirmar.reportValidity(); }
     });
-    document.getElementById('confirmarSenha')?.addEventListener('input', e => e.target.setCustomValidity(''));
+    for (const id of ['senha','confirmarSenha']) document.getElementById(id)?.addEventListener('input', () => document.getElementById('confirmarSenha')?.setCustomValidity(''));
 });

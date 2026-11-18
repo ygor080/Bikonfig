@@ -4,7 +4,7 @@ const codigosSeguros = new Set(['ENOENT', 'EACCES', '42P01', '42703', '42501', '
     'app/network-error', 'auth/invalid-credential', 'auth/insufficient-permission', 'auth/internal-error']);
 function responderFalhaFirebase(res, erro, etapa) {
     const codigo = codigosSeguros.has(erro?.code) ? erro.code : 'NAO_CLASSIFICADO';
-    console.error('Falha no acesso Google:', JSON.stringify({ etapa, codigo }));
+    require('./observabilidade').registrarErro('google_' + etapa, { code: codigo });
     let publico = 'FIREBASE_INDISPONIVEL';
     if (etapa === 'identidade') publico = ['42P01', '42703', '42501'].includes(codigo)
         ? 'FIREBASE_BANCO_NAO_CONFIGURADO' : 'FIREBASE_BANCO_INDISPONIVEL';

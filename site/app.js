@@ -8,6 +8,7 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     const app = express();
     app.set('env', env.NODE_ENV || 'development');
     app.disable('x-powered-by');
+    app.use(require('./config/observabilidade').monitorar(env));
     // Render encerra o HTTPS no proxy imediatamente à frente do servidor.
     if (env.NODE_ENV === 'production') app.set('trust proxy', 1);
     const configFirebaseWeb = require('./config/firebase').lerConfigFirebase(env);
@@ -21,6 +22,10 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     app.get('/healthz', require('./middleware/saude').criarVerificacaoSaude(pool));
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
+    app.get('/privacidade', (req,res)=>{
+        const email=/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(env.PRIVACIDADE_CONTATO||'') ? env.PRIVACIDADE_CONTATO : 'bikonfig1@gmail.com';
+        res.render('privacidade',{contato:email});
+    });
     app.use(parsersRequisicao());
     app.use(express.static(path.join(__dirname, 'public')));
 
@@ -52,7 +57,7 @@ function criarApp({ env = process.env, pool = require('./config/banco').pool, st
     app.use(erroRequisicao);
     app.use((erro, req, res, next) => {
         if (res.headersSent) return next(erro);
-        console.error('Falha ao processar requisição:', erro.code || erro.name || 'erro interno');
+        require('./config/observabilidade').registrarErro('http_nao_tratado',erro);
         res.status(500).send('Não foi possível concluir a solicitação. Tente novamente mais tarde.');
     });
     return app;

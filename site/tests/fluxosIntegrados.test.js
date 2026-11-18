@@ -500,4 +500,10 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor�
         assert.equal((await db.query('SELECT COUNT(*) AS n FROM configuracoes WHERE id=$1',[salva.id])).rows[0].n,1);
     });
 
+    await t.test('privacidade pública oferece contato e requisições têm identificador sem ecoar dados do cliente', async () => {
+        const resposta=await fetch(base+'/privacidade?token=NAO_LOGAR',{headers:{'x-request-id':'NAO_ECOAR'}});
+        assert.equal(resposta.status,200); assert.equal(resposta.headers.get('set-cookie'),null); assert.match(resposta.headers.get('x-request-id'),/^[a-f0-9-]{36}$/);
+        const html=await resposta.text(); assert.match(html,/bikonfig1@gmail.com/); assert.ok(!html.includes('NAO_LOGAR')); assert.ok(!html.includes('NAO_ECOAR'));
+    });
+
 });

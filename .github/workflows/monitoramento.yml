@@ -1,0 +1,19 @@
+name: Verificar publicação
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+permissions:
+  contents: read
+jobs:
+  verificar:
+    if: github.event_name == 'workflow_dispatch' || vars.MONITORAMENTO_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node site/scripts/verificarPublicacao.js
+      - run: node site/scripts/verificarGooglePublicado.js

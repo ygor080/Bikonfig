@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <link rel="icon" type="image/png" href="/img/logo-bikonfig-32.png">
+    <link rel="apple-touch-icon" href="/img/logo-bikonfig-180.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <title>Privacidade - Bikonfig</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="cabecalho"><div class="container"><a href="/" class="logo"><img class="logo-imagem" src="/img/logo-bikonfig-80.webp" alt="" width="40" height="40" decoding="async"><span>Bikonfig</span></a></div></header>
+    <main class="container pagina-privacidade">
+        <h1>Privacidade e dados pessoais</h1><p>Atualizado em 17/11/2026.</p>
+        <h2>Quem responde pelo serviço</h2><p>O Bikonfig é um projeto de configuração de bicicletas. Contato para dúvidas, correção ou exclusão de dados: <a href="mailto:<%= contato %>"><%= contato %></a>.</p>
+        <h2>Dados usados</h2><p>Guardamos nome de usuário, e-mail, senha protegida por hash, permissões da conta e montagens salvas. Ao entrar com Google, recebemos a identificação do usuário e o e-mail confirmado; não recebemos sua senha Google.</p>
+        <h2>Finalidades e serviços envolvidos</h2><p>Os dados permitem autenticar, proteger a conta e salvar montagens. O site é hospedado no Render e usa PostgreSQL no Supabase. O acesso Google usa Firebase/Google. Quando habilitada, a recuperação de senha envia instruções pelo Resend. Cada provedor trata dados conforme seus próprios termos e políticas.</p>
+        <h2>Cookies e armazenamento no navegador</h2><p>Cookies de sessão mantêm o acesso e protegem formulários. O rascunho de montagem pode ficar no armazenamento local do seu navegador, separado por usuário, para recuperar seleções. Limpar dados do navegador remove esse rascunho; suas montagens salvas na conta permanecem.</p>
+        <h2>Segurança e conservação</h2><p>Usamos conexões protegidas, controle de acesso e links temporários de recuperação. Logs operacionais registram códigos, duração e identificadores técnicos, sem registrar senhas ou tokens. Backups locais cifrados podem ser conservados pelo responsável para recuperação. A conservação dessas cópias é revisada conforme a necessidade do serviço. Não há envio automático de backups para o GitHub. Provedores de infraestrutura podem manter registros técnicos próprios.</p>
+        <h2>Seus pedidos</h2><p>Você pode pedir informações, correção ou exclusão pelo contato acima. Precisaremos comprovar a titularidade antes de alterar ou excluir a conta. Não envie senhas ou tokens por e-mail. A exclusão da conta pode remover montagens associadas; cópias de segurança são eliminadas conforme seu ciclo de retenção.</p>
+        <p>Este aviso descreve o funcionamento atual do projeto e deve ser revisto quando os serviços ou as finalidades mudarem.</p>
+    </main>
+    <footer class="rodape"><div class="container"><p>Bikonfig - Configurador de bicicletas</p><a href="/privacidade">Privacidade e dados pessoais</a></div></footer>
+</body>
+</html>
