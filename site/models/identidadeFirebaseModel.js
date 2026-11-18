@@ -6,6 +6,13 @@ function validar(projectId, uid) {
     if (typeof projectId !== 'string' || !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)
         || typeof uid !== 'string' || !uid.length || uid.length > 128) throw new Error('Identidade Firebase inválida.');
 }
+function erroConflito(usuario, email) {
+    return Object.assign(new Error('conflito'), { code: 'CADASTRO_CONFLITO',
+        motivo: usuario && usuario.email.trim().toLowerCase() === email && !usuario.acesso_externo ? 'conta-local' : 'outro-acesso' });
+}
+const CONSULTA_CONFLITO = `SELECT u.id, u.email, EXISTS (
+    SELECT 1 FROM usuarios_identidades i WHERE i.usuario_id = u.id) AS acesso_externo
+    FROM usuarios u WHERE lower(btrim(u.email)) = $1 OR u.nome = $2 LIMIT 1`;
 
 class IdentidadeFirebaseModel {
     static async temVinculo(usuarioId, projectId) {
@@ -22,8 +29,8 @@ class IdentidadeFirebaseModel {
                 FROM usuarios_identidades i JOIN usuarios u ON u.id = i.usuario_id
                 WHERE i.firebase_project_id = $1 AND i.firebase_uid = $2`, [projectId, uid]);
             if (vinculos.length) { await client.query('COMMIT'); return vinculos[0]; }
-            const { rows: conflito } = await client.query('SELECT id FROM usuarios WHERE lower(btrim(email)) = $1 OR nome = $2 LIMIT 1', [email, nome]);
-            if (conflito.length) throw Object.assign(new Error('conflito'), { code: 'CADASTRO_CONFLITO' });
+            const { rows: conflito } = await client.query(CONSULTA_CONFLITO, [email, nome]);
+            if (conflito.length) throw erroConflito(conflito[0], email);
             // Mantém compatibilidade com senha NOT NULL sem guardar a senha Firebase.
             // O segredo aleatório de 256 bits é descartado; esta conta entra pelo Firebase.
             const placeholder = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
@@ -39,7 +46,8 @@ class IdentidadeFirebaseModel {
                     WHERE i.firebase_project_id = $1 AND i.firebase_uid = $2`, [projectId, uid]);
                 const existente = rows[0];
                 if (existente) return existente;
-                throw Object.assign(new Error('conflito'), { code: 'CADASTRO_CONFLITO' });
+                const { rows: conflitos } = await client.query(CONSULTA_CONFLITO, [email, nome]);
+                throw erroConflito(conflitos[0], email);
             }
             throw erro;
         } finally { client.release(); }

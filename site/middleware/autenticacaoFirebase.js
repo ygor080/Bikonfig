@@ -83,6 +83,9 @@ function criarAutenticacaoFirebase({ env = process.env, auth, identidades } = {}
                         base.slice(0, 20) + '-' + sufixo, claims.email.trim().toLowerCase());
                 }
         } catch (erro) {
+            if (erro.code === 'CADASTRO_CONFLITO' && erro.motivo === 'conta-local') return res.status(409).json({
+                erro: 'Esse e-mail já pertence a uma conta com usuário e senha. Entre pelo formulário tradicional ou selecione outra conta Google. Suas contas e montagens não foram alteradas.',
+                codigo: 'CONTA_LOCAL_EXISTENTE' });
             if (erro.code === 'CADASTRO_CONFLITO') return res.status(409).json({ erro: 'Não foi possível concluir com esses dados. Se você já tem conta, entre com seu usuário e senha.', codigo: 'CADASTRO_CONFLITO' });
             return responderFalhaFirebase(res, erro, 'identidade');
         }

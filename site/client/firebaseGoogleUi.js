@@ -4,6 +4,13 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
     const form = doc.querySelector('form.form-login');
     const enviar = form.querySelector('[type="submit"]');
     const erro = doc.getElementById('erroFirebase'), status = doc.getElementById('statusFirebase');
+    const ajuda = doc.getElementById('ajudaConflitoGoogle');
+    doc.getElementById('usarAcessoLocal')?.addEventListener('click', () => {
+        const usuario = form.elements.namedItem('usuario');
+        if (usuario) { usuario.focus(); usuario.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); }
+        else navegar('/login#usuario');
+    });
+    doc.getElementById('trocarContaGoogle')?.addEventListener('click', () => botao.click());
     let sdk;
     const mostrarErro = mensagem => { erro.textContent = mensagem; erro.hidden = false; erro.focus(); };
     // Pré-carrega antes do clique: o popup precisa abrir durante o gesto do usuário.
@@ -14,6 +21,7 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
     botao.addEventListener('click', async () => {
         if (form.dataset.authBusy === 'true') return;
         erro.hidden = true;
+        if (ajuda) ajuda.hidden = true;
         form.dataset.authBusy = 'true'; form.setAttribute('aria-busy', 'true');
         botao.disabled = true; enviar.disabled = true; status.textContent = 'Conectando ao Google…';
         try {
@@ -36,6 +44,8 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
             await sdk.sair().catch(() => {});
             status.textContent = 'Acesso autorizado. Abrindo sua conta…'; navegar('/home');
         } catch (e) {
+            try { await sdk?.sair?.(); } catch { /* Não substitui o erro original por falha de limpeza. */ }
+            if (ajuda) ajuda.hidden = !['CONTA_LOCAL_EXISTENTE', 'CADASTRO_CONFLITO', 'auth/account-exists-with-different-credential'].includes(e.code);
             const mensagens = {
                 'auth/popup-closed-by-user': 'A janela do Google foi fechada. Você pode tentar novamente.',
                 'auth/cancelled-popup-request': 'O acesso Google foi cancelado. Tente novamente.',
@@ -46,6 +56,7 @@ function iniciarGoogle({ doc, obterCliente, consultar, navegar }) {
                 'auth/network-request-failed': 'Não foi possível conectar. Confira sua conexão e tente novamente.',
                 'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
                 CADASTRO_CONFLITO: 'Já existe uma conta com esses dados. Entre com seu usuário e senha. O Google não será vinculado automaticamente.',
+                CONTA_LOCAL_EXISTENTE: 'Esse e-mail já pertence a uma conta com usuário e senha. Use seu usuário original ou selecione outra conta Google. Suas montagens continuam na conta original.',
                 FIREBASE_BANCO_NAO_CONFIGURADO: 'O acesso Google ainda precisa ser configurado no servidor (código: FIREBASE_BANCO_NAO_CONFIGURADO). Avise o responsável pelo site.',
                 FIREBASE_BANCO_INDISPONIVEL: 'Não foi possível consultar sua conta no servidor (código: FIREBASE_BANCO_INDISPONIVEL). Tente novamente mais tarde.',
                 FIREBASE_CREDENCIAL_INVALIDA: 'O servidor não conseguiu validar o acesso Google (código: FIREBASE_CREDENCIAL_INVALIDA). Avise o responsável pelo site.',

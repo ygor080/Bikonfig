@@ -426,7 +426,22 @@ test('fluxos integrados com HTTP, modelos, EJS, bcrypt, PDF e PostgreSQL tempor√
             const conflitoGoogle = cliente();
             assert.equal((await conflitoGoogle.pedir('/auth/firebase/google', { idToken: 'token-conflito' })).status, 409);
             assert.equal(await require('../models/identidadeFirebaseModel').buscar('bikonfig-test', 'uid-google-conflito'), null);
+            const local = (await db.query("SELECT id, email FROM usuarios WHERE nome = 'outro'")).rows[0];
+            Object.assign(claimsGoogle, { uid: 'uid-conflito-local', sub: 'uid-conflito-local', email: local.email });
+            const conflitoLocal = await cliente().pedir('/auth/firebase/google', { idToken: 'token-local' });
+            assert.equal(conflitoLocal.status, 409); assert.equal((await conflitoLocal.json()).codigo, 'CONTA_LOCAL_EXISTENTE');
+            assert.equal(await require('../models/identidadeFirebaseModel').buscar('bikonfig-test', 'uid-conflito-local'), null);
+            assert.equal((await require('../models/usuarioModel').validarLogin('outro', senha)).id, local.id);
+            assert.equal((await db.query('SELECT COUNT(*) AS total FROM usuarios')).rows[0].total, quantidade);
         } finally { Object.assign(claimsGoogle, anterior); }
+        const { rows: [salvaGoogle] } = await db.query('INSERT INTO configuracoes (usuario_id, nome) VALUES ($1, $2) RETURNING id', [identidade.id, 'Montagem Google preservada']);
+        const cookieAnterior = google.cookie;
+        assert.equal((await google.pedir('/logout', {})).status, 302);
+        assert.equal((await fetch(base + '/home', { redirect: 'manual', headers: { cookie: cookieAnterior } })).status, 302);
+        assert.equal((await google.pedir('/home')).status, 302);
+        assert.equal((await google.pedir('/auth/firebase/google', { idToken: 'novo-token-google' })).status, 200);
+        assert.equal((await require('../models/identidadeFirebaseModel').buscar('bikonfig-test', claimsGoogle.uid)).id, identidade.id);
+        assert.equal((await db.query('SELECT usuario_id FROM configuracoes WHERE id = $1', [salvaGoogle.id])).rows[0].usuario_id, identidade.id);
     });
 
 

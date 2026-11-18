@@ -61,3 +61,19 @@ test('falhas do servidor exibem diagnóstico específico sem expor o corpo bruto
         assert.ok(!p.doc.getElementById('erroFirebase').textContent.includes('SEGREDO'));
     }
 });
+
+test('conflito de conta local oferece acesso original e troca de Google sem expor dados ou associar contas', async t => {
+    for (const cadastro of [false, true]) {
+        const p = pagina(t, cadastro, true); let saiu = 0, destino, acessos = 0;
+        iniciar({ doc: p.doc, criarCliente: () => ({ google: async () => { acessos++; return { user: { getIdToken: async () => 'jwt' } }; }, sair: async () => { saiu++; } }),
+            consultar: async (url, opcoes) => opcoes.body ? { ok: false, status: 409, json: async () => ({ codigo: 'CONTA_LOCAL_EXISTENTE', email: 'NAO_MOSTRAR' }) }
+                : { ok: true, json: async () => ({}) }, navegar: url => { destino = url; } });
+        await aguardar(); p.doc.getElementById('entrarGoogle').click(); await aguardar();
+        assert.equal(p.doc.getElementById('ajudaConflitoGoogle').hidden, false);
+        assert.match(p.doc.getElementById('erroFirebase').textContent, /usuário original/);
+        assert.ok(!p.doc.body.textContent.includes('NAO_MOSTRAR')); assert.equal(saiu, 1);
+        p.doc.getElementById('usarAcessoLocal').click();
+        if (cadastro) assert.equal(destino, '/login#usuario'); else assert.equal(p.doc.activeElement.id, 'usuario');
+        p.doc.getElementById('trocarContaGoogle').click(); await aguardar(); assert.equal(acessos, 2);
+    }
+});

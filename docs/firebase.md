@@ -71,3 +71,38 @@ publicado. Valide a autorização Google real após configurar o projeto.
 
 Referências: [Google com Firebase](https://firebase.google.com/docs/auth/web/google-signin)
 e [cookies de sessão](https://firebase.google.com/docs/auth/admin/manage-cookies).
+
+## Validação de autenticação — etapa 37
+
+O acesso Google real em produção foi confirmado pelo proprietário em
+17/11/2026, após a aplicação da migração 031. As verificações públicas
+confirmaram saúde, domínio autorizado, configuração do popup, CSRF e recusa
+de token inválido. Para repetir sem entrar em contas ou criar usuários:
+
+```powershell
+npm --prefix site run check:published
+npm --prefix site run check:google:published
+```
+
+O segundo comando consulta a configuração pública e os domínios autorizados
+no Google e envia duas tentativas deliberadamente inválidas ao endpoint
+de login (uma sem CSRF e outra com token inválido). Não modifica usuários
+ou montagens; consome duas tentativas do limite de autenticação e cria
+somente a sessão anônima necessária ao CSRF. Não execute em repetição
+rápida. O relatório não imprime API key, cookies, tokens ou e-mails.
+Ele não substitui uma validação autenticada de entrada, saída e montagens.
+
+Quando o e-mail Google já pertence a uma conta local sem vínculo externo,
+a resposta usa CONTA_LOCAL_EXISTENTE. A tela oferece entrar com usuário
+e senha ou selecionar outra conta Google. No cadastro, a primeira opção
+leva ao login; no login, coloca o foco no usuário. Conflitos com outro
+acesso também apresentam orientação sem expor dados da conta. Nenhuma
+associação, transferência de montagens ou migração ocorre automaticamente.
+Depois de uma tentativa sem sucesso, a identidade temporária do SDK é
+limpa antes de permitir nova seleção.
+
+Os testes com HTTP, sessões reais e PostgreSQL temporário conferem conflito
+local, integridade de credenciais, ausência de duplicação, logout que
+invalida o cookie anterior e retorno à mesma conta com sua montagem.
+O provedor é simulado nesses testes; não são usados tokens reais de usuários.
+Não há nova migração SQL nem variável de ambiente nesta etapa.
